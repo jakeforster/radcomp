@@ -1,3 +1,5 @@
+[![DOI](https://zenodo.org/badge/634282475.svg)](https://zenodo.org/badge/latestdoi/634282475)
+
 # Radcomp: Radioactive compartment models
 
 Radcomp is a Python package for modelling the movement of radioactive nuclei and their progeny through a system. 
