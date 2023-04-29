@@ -1,0 +1,27 @@
+# test.toml
+
+[compartments]
+names = ["plasma", "kidneys", "lungs"]
+
+[[layer]]
+name = "Nuclide A"
+trans_rate_h-1 = 0.91
+branching_fracs = [0.1, 0.9]
+initial_MBq = [1, 3.3, 2]
+xfer_coeffs_h-1 = [
+[0, 3.4, 2.1],  # flow to blood
+[4.3, 0, 1.3],  # flow to kidneys
+[5.8, 9.2, 0]   # flow to lungs
+]
+
+[[layer]]
+name = "Nuclide B"
+trans_rate_h-1 = 0  # stable
+initial_nuclei = [3, 2, 2]
+xfer_coeffs_h-1 = [[0, 3, 2], [4, 0, 1], [5.1, 9, 0]]
+
+[[layer]]
+name = "Nuclide C"
+trans_rate_h-1 = 0.2
+initial_MBq = [0, 1.3, 0]
+xfer_coeffs_h-1 = [[0, 1, 0], [2, 0, 1.3], [3, 1, 0]]

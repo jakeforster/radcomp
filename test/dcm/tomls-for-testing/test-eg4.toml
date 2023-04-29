@@ -1,0 +1,14 @@
+# test-eg4.toml
+
+[[layer]]
+trans_rate_h-1 = 0.03
+initial_MBq = [2]
+branching_fracs = [0.8,0.1]
+
+[[layer]]
+trans_rate_h-1 = 0
+initial_nuclei = [0]
+
+[[layer]]
+trans_rate_h-1 = 0
+initial_nuclei = [0]

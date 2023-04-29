@@ -1,0 +1,10 @@
+# test-eg4-itac.toml
+
+
+[[layer]]
+trans_rate_h-1 = 0
+initial_nuclei = [0]
+
+[[layer]]
+trans_rate_h-1 = 0
+initial_nuclei = [0]

@@ -1,0 +1,57 @@
+# LSP
+[tool.pyright]
+venv = "venv3.11.2"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "radcomp"
+version = "0.0.1"
+authors = [{ name = "Jake Forster" },]
+description = "Model the movement of radioactive nuclei and their progeny through a system"
+readme = "README.md"
+requires-python = ">=3.10, <3.12"
+license = { text = "MIT" }
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Topic :: Scientific/Engineering :: Medical Science Apps.",
+]
+dependencies = [
+    "numpy>=1.24.2, < 2",
+    "scipy>=1.10.1, < 2",
+    "matplotlib>=3.7.1, < 4",
+]
+
+[project.urls]
+Homepage = "https://github.com/jakeforster/radcomp"
+"Bug Tracker" = "https://github.com/jakeforster/radcomp/issues"
+Documentation = "https://radcomp.readthedocs.io"
+Changelog = "https://github.com/jakeforster/radcomp/CHANGELOG.md"
+
+[tool.poetry]
+name = "radcomp"
+version = "0.0.1"
+description = "Model the movement of radioactive nuclei and their progeny through a system"
+authors = ["Jake Forster <jakecameron.forster@gmail.com>"]
+license = "MIT"
+readme = "README.md"
+homepage = "https://github.com/jakeforster/radcomp"
+repository = "https://github.com/jakeforster/radcomp"
+documentation = "https://radcomp.readthedocs.io"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Topic :: Scientific/Engineering :: Medical Science Apps.",
+]
+
+[tool.poetry.dependencies]
+python = ">=3.10,<3.12"
+numpy = "^1.24.2"
+scipy = "^1.10.1"
+matplotlib = "^3.7.1"
+pytest = "^7.2.2"

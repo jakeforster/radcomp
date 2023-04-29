@@ -1,0 +1,6 @@
+# test-eg10-itac.toml
+
+[[layer]]
+trans_rate_h-1 = 0
+initial_nuclei = [0, 1e10]
+xfer_coeffs_h-1 = [[0,0], [0,0]]

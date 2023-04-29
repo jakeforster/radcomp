@@ -1,0 +1,6 @@
+# test-eg6.toml
+
+[[layer]]
+trans_rate_h-1 = 0
+initial_nuclei = [2, 5]
+xfer_coeffs_h-1 = [[0, 4], [5,0]]

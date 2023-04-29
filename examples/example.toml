@@ -1,0 +1,57 @@
+###############################################
+# example.toml                                #
+#                                             #
+# In this example:                            #
+# + 2 unstable nuclides                       #
+# + 1st nuclide sometimes transitions to 2nd  #
+# + 3 compartments                            #
+# + there is transfer of the 1st nuclide      #
+#   between cmpts 1 and 2 in both ways        #
+# + there is transfer of the 2nd nuclide from #
+#   cmpt 2 to 3                               #
+#                                             #
+#                                             #
+# Layer 1:                                    #
+# +--------+    M112   +--------+             #
+# |        | <-------- |        |             #
+# |   C1   |           |   C2   |             #
+# |        | --------> |        |             #
+# +--------+    M121   +--------+             #
+#                                             #
+#                                             #
+#                      +--------+             #
+#                      |        |             #
+#                      |   C3   |             #
+#                      |        |             #
+#                      +--------+             #
+#                                             #
+# Layer 2:                                    #
+# +--------+        +--------+                #
+# |        |        |        |                #
+# |   C1   |        |   C2   |                #
+# |        |        |        |                #
+# +--------+        +--------+                #
+#                       |                     #
+#                      M232                   #
+#                       |                     #
+#                       V                     #
+#                   +--------+                #
+#                   |        |                #
+#                   |   C3   |                #
+#                   |        |                #
+#                   +--------+                #
+###############################################
+
+
+[[layer]]
+name = "Radionuclide 1"
+trans_rate_h-1 = 0.1
+initial_MBq = [2, 0, 3]
+xfer_coeffs_h-1 = [[0, 0.4, 0], [0.5, 0, 0], [0,0,0]]
+branching_fracs = [0.9]
+
+[[layer]]
+name = "Radionuclide 2"
+trans_rate_h-1 = 0.4
+initial_MBq = [0, 0, 0]
+xfer_coeffs_h-1 = [[0, 0, 0], [0, 0, 0], [0, 0.8, 0]]

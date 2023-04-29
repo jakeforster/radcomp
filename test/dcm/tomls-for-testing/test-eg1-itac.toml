@@ -1,0 +1,6 @@
+# test-eg1-itac.toml
+
+
+[[layer]]
+trans_rate_h-1 = 0.5
+initial_MBq = [1]

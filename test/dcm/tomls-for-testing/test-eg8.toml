@@ -1,0 +1,6 @@
+# test-eg8.toml
+
+[[layer]]
+trans_rate_h-1 = 0
+initial_nuclei = [2, 0,0]
+xfer_coeffs_h-1 = [[0, 0,0 ], [2.55,0,0], [0.45,0,0]]

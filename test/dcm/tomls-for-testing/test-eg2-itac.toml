@@ -1,0 +1,7 @@
+# test-eg2-itac.toml
+
+
+[[layer]]
+trans_rate_h-1 = 0.5
+initial_MBq = [0.3e6, 4e6]
+xfer_coeffs_h-1 = [[0,0],[0,0]]

@@ -1,0 +1,5 @@
+# test-eg1.toml
+
+[[layer]]
+trans_rate_h-1 = 0
+initial_nuclei = [3]

@@ -1,0 +1,12 @@
+# test-eg10.toml
+
+[[layer]]
+trans_rate_h-1 = 0.1
+initial_MBq = [30, 0]
+xfer_coeffs_h-1 = [[0, 0], [0.5, 0]]
+branching_fracs = [0.3]
+
+[[layer]]
+trans_rate_h-1 = 0
+initial_nuclei = [0, 1e10]
+xfer_coeffs_h-1 = [[0,0], [0,0]]

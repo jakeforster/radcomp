@@ -1,0 +1,5 @@
+# test-exp-ac225.toml
+
+[[layer]]
+trans_rate_h-1 = 0.0028881132523331052
+initial_MBq = [1]

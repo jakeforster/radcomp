@@ -1,0 +1,5 @@
+[[layer]]
+name = "Radionuclide 2"
+trans_rate_h-1 = 0.4
+initial_MBq = [0, 0, 0]
+xfer_coeffs_h-1 = [[0, 0, 0], [0, 0, 0], [0, 0.8, 0]]

@@ -1,0 +1,11 @@
+# test-eg2.toml
+
+[[layer]]
+trans_rate_h-1 = 0
+initial_nuclei = [4, 13]
+xfer_coeffs_h-1 = [[0, 0], [0, 0]]
+
+[[layer]]
+trans_rate_h-1 = 0
+initial_nuclei = [2, 0]
+xfer_coeffs_h-1 = [[0, 0], [0, 0]]
