@@ -13,7 +13,6 @@
 
 * Voiding
 ** API
-
 #+begin_src python
 from dataclasses import dataclass
 import numpy as np
@@ -32,11 +31,14 @@ fractions:
 + 0--1
 + fraction in each layer-compartment voided at times in `times`
 
-Soln init:
+Add argument to solns:
+
+#+begin_src python
 voiding : list[Voiding]
+#+end_src
 
 ** to solve a layer
-+ for each voiding, create VoidingLayer object for the layer
+for each Voiding object in list, create a VoidingLayer object for the layer being solved
 
 #+begin_src python
 from dataclasses import dataclass
@@ -51,12 +53,19 @@ class VoidingLayer:
 fractions:
 + length (num compartments)
 
-+ discard VoidingLayer object if fractions are all zero
-+ put VoidingLayer objects (with fractions not all zero) into a list
-+ sort the list by void time
+put VoidingLayer objects (with fractions not all zero) into a list
 
 #+begin_src python
-sorted_voiding_layer_list = sorted(voiding_layer_list, key=lambda x: x.time)
+def create_voiding_layer_list(voiding_list: list[Voiding], layer: int):
+    return [VoidingLayer(voiding.time, voiding.fractions[layer]) for voiding in voiding_list if any(voiding.fractions[layer] != 0)]
+#+end_src
+
+sort the list by void time
+
+#+begin_src python
+def create_sorted_voiding_layer_list(voiding_list: list[Voiding], layer: int]):
+    voiding_layer_list = create_voiding_layer_list(voiding_list, layer):
+    return sorted(voiding_layer_list, key=lambda x: x.time)
 #+end_src
 
 solve the layer:
