@@ -11,35 +11,56 @@
 + ff is compatible with prelayer, but user cannot provide a prelayer tac for it
 + solver must skip over ff compartment for the first layer
 
-* Voiding / elution
-+ write a test first
-+ solve in intervals and adjust initial conditions
-+ specify void times and (layer,compartment) tuples
-+ can supply more than 1, but not for the same layer,compartment tuple
+* Voiding
+** API
 
 #+begin_src python
-from typing import NamedTuple
-class LayerCompartment(NamedTuple):
-    layer_index: int
-    compartment_index: int
-#+end_src
+from dataclasses import dataclass
+import numpy as np
 
-#+begin_src python
-from typing import Optional
+@dataclass
 class Voiding:
     times : list | numpy.array
-    layers : Optional[list[int]] = None
-    compartments : Optional[list[int]] = None
-    layer_compartments : Optional[list[LayerCompartment]] = None
+    fractions : numpy.array
 #+end_src
 
-Soln init:
-Take a Void object or a list of Void objects
+times:
++ h
 
-Soln steps
-1. Take all the Void objects and build a list of void times for each layer, e.g. for layer 1
-   [[[compartment index 1, compartment index 2], time_void_1 ], [compartment index 3], time_void_2]]
-2. Order elements by void time
-   [[compartment index 3], time_void_2], [[compartment index 1, compartment index 2], time_void_1 ]]
-3. Solve layer 1 from t_i to time_void_2. Change initial conditions by setting compartment index 3 to zero.
-   Solve from time_void_2 to time_void_1, etc.
+fractions:
++ shape (num layers, num compartments)
++ 0--1
++ fraction in each layer-compartment voided at times in `times`
+
+Soln init:
+voiding : list[Voiding]
+
+** to solve a layer
++ for each voiding, create VoidingLayer object for the layer
+
+#+begin_src python
+from dataclasses import dataclass
+import numpy as np
+
+@dataclass
+class VoidingLayer:
+    time : float
+    fractions : numpy.array
+#+end_src
+
+fractions:
++ length (num compartments)
+
++ discard VoidingLayer object if fractions are all zero
++ put VoidingLayer objects (with fractions not all zero) into a list
++ sort the list by void time
+
+#+begin_src python
+sorted_voiding_layer_list = sorted(voiding_layer_list, key=lambda x: x.time)
+#+end_src
+
+solve the layer:
++ solve from initial time to first VoidingLayer.time
++ change the initial conditions for the next interval: (1 - VoidingLayer.fractions) * soln
++ solve from first VoidingLayer.time to second VoidingLayer.time, etc
++ solve last VoidingLayer.time to end time
