@@ -17,8 +17,21 @@
 + specify void times and (layer,compartment) tuples
 + can supply more than 1, but not for the same layer,compartment tuple
 
-Void class
-Init: list of (layer index, compartment index) tuples and list of void times
+#+begin_src python
+from typing import NamedTuple
+class LayerCompartment(NamedTuple):
+    layer_index: int
+    compartment_index: int
+#+end_src
+
+#+begin_src python
+from typing import Optional
+class Voiding:
+    times : list | numpy.array
+    layers : Optional[list[int]] = None
+    compartments : Optional[list[int]] = None
+    layer_compartments : Optional[list[LayerCompartment]] = None
+#+end_src
 
 Soln init:
 Take a Void object or a list of Void objects
