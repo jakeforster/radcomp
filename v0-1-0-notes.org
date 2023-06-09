@@ -16,3 +16,17 @@
 + solve in intervals and adjust initial conditions
 + specify void times and (layer,compartment) tuples
 + can supply more than 1, but not for the same layer,compartment tuple
+
+Void class
+Init: list of (layer index, compartment index) tuples and list of void times
+
+Soln init:
+Take a Void object or a list of Void objects
+
+Soln steps
+1. Take all the Void objects and build a list of void times for each layer, e.g. for layer 1
+   [[[compartment index 1, compartment index 2], time_void_1 ], [compartment index 3], time_void_2]]
+2. Order elements by void time
+   [[compartment index 3], time_void_2], [[compartment index 1, compartment index 2], time_void_1 ]]
+3. Solve layer 1 from t_i to time_void_2. Change initial conditions by setting compartment index 3 to zero.
+   Solve from time_void_2 to time_void_1, etc.
