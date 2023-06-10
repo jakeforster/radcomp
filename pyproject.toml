@@ -1,6 +1,6 @@
 # LSP
 [tool.pyright]
-venv = "venv3.11.2"
+venv = "venv3.11"
 
 [build-system]
 requires = ["hatchling"]

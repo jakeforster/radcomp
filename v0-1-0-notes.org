@@ -13,63 +13,17 @@
 
 * Voiding
 ** API
-#+begin_src python
-from dataclasses import dataclass
-import numpy as np
-
-@dataclass
-class Voiding:
-    times : list | numpy.array
-    fractions : numpy.array
-#+end_src
-
-times:
-+ h
-
-fractions:
-+ shape (num layers, num compartments)
-+ 0--1
-+ fraction in each layer-compartment voided at times in `times`
-
-Add argument to solns:
-
++ User creates objects of class Voiding
++ Pass them to solving methods:
 #+begin_src python
 voiding : list[Voiding]
 #+end_src
 
 ** to solve a layer
-for each Voiding object in list, create a VoidingLayer object for the layer being solved
-
-#+begin_src python
-from dataclasses import dataclass
-import numpy as np
-
-@dataclass
-class VoidingLayer:
-    time : float
-    fractions : numpy.array
-#+end_src
-
-fractions:
-+ length (num compartments)
-
-put VoidingLayer objects (with fractions not all zero) into a list
-
-#+begin_src python
-def create_voiding_layer_list(voiding_list: list[Voiding], layer: int):
-    return [VoidingLayer(voiding.time, voiding.fractions[layer]) for voiding in voiding_list if any(voiding.fractions[layer] != 0)]
-#+end_src
-
-sort the list by void time
-
-#+begin_src python
-def create_sorted_voiding_layer_list(voiding_list: list[Voiding], layer: int]):
-    voiding_layer_list = create_voiding_layer_list(voiding_list, layer):
-    return sorted(voiding_layer_list, key=lambda x: x.time)
-#+end_src
-
-solve the layer:
-+ solve from initial time to first VoidingLayer.time
-+ change the initial conditions for the next interval: (1 - VoidingLayer.fractions) * soln
++ ordered_voids_in_layer = _ordered_voids_in_layer(: list[Voiding], layer: int)
++ solve from initial time to first VoidingLayer.time in list
++ change the initial conditions for the next interval: (1 - VoidingLayer.fractions) * soln at end time
 + solve from first VoidingLayer.time to second VoidingLayer.time, etc
 + solve last VoidingLayer.time to end time
++ record the nuclei voided in variable in model soln
++ can void in forcing function compartments after the first layer
