@@ -7,6 +7,7 @@ from typing import Optional
 
 from radcomp.common.utils import nuclei_to_activity
 from radcomp.common.prelayer import Prelayer
+from radcomp.common.voiding import Voiding, _ordered_voids_in_layer
 
 
 def _prelayer_as_tuple(
@@ -140,6 +141,7 @@ def _solve_dcm(
     prelayer_as_tuple: Optional[
         tuple[float, np.ndarray, list[Callable[[float], float]]]
     ] = None,
+    voiding_list: Optional[list[Voiding]] = None,
 ) -> tuple[list[np.ndarray], list[np.ndarray]]:
     """Solve the deterministic compartment model.
 
@@ -211,23 +213,96 @@ def _solve_dcm(
     )
 
     num_layers_new = len(trans_rates_new)
+
+    if voiding_list is None:
+        voiding_list = []
+
     for layer in range(1, num_layers_new):
-        sol = solve_ivp(
-            _ode_rhs,
-            t_span,
-            initial_nuclei_new[layer],
-            t_eval=t_eval,
-            args=(
-                trans_rates_new,
-                branching_fracs_new[layer],
-                xfer_coeffs_new[layer],
-                layer,
-                nuclei_funcs,
-            ),
-        )
-        t_layers.append(sol.t)
-        nuclei_layers.append(sol.y)
-        nuclei_funcs.append([interp1d(sol.t, n) for n in sol.y])
+
+        layer_voids = _ordered_voids_in_layer(voiding_list, layer - 1)  # prelayer
+
+        t_start = t_span[0]
+        initial_nuclei_layer = initial_nuclei_new[layer]
+
+        sol_t_layer = np.array([t_start])  # []
+        sol_y_layer = np.reshape(initial_nuclei_layer, (-1, 1))  # [[],[]]
+        for void in layer_voids:
+            t_end = void.time
+            assert t_end <= t_span[1]
+
+            # slice t_eval
+            t_eval_interval = (
+                None
+                if t_eval is None
+                else np.append(t_eval[(t_eval >= t_start) & (t_eval < t_end)], [t_end])
+            )
+            # if None, t_span bounds are always included in the deduced t_eval... I think
+
+            # solve
+            sol = solve_ivp(
+                _ode_rhs,
+                (t_start, t_end),
+                initial_nuclei_layer,
+                t_eval=t_eval_interval,
+                args=(
+                    trans_rates_new,
+                    branching_fracs_new[layer],
+                    xfer_coeffs_new[layer],
+                    layer,
+                    nuclei_funcs,
+                ),
+            )
+
+            # record voided nuclei at t_end
+            voided_nuclei = sol.y[:, -1] * void.fractions
+
+            # initial conditions for next interval
+            initial_nuclei_layer = sol.y[:, -1] - voided_nuclei
+
+            # store soln with modified t_end point
+            # already have the initial conditions
+            assert sol_t_layer[-1] == sol.t[0]
+            assert np.array_equal(sol_y_layer[:, -1], sol.y[:, 0])
+            sol_t_layer = np.append(sol_t_layer, sol.t[1:])
+            sol_y_layer = np.append(sol_y_layer, sol.y[:, 1:-1], axis=1)
+            # modified end point
+            sol_y_layer = np.concatenate(
+                (sol_y_layer, np.reshape(initial_nuclei_layer, (-1, 1))), axis=1
+            )
+
+            # get ready for next interval
+            t_start = t_end
+
+        # final interval
+        if t_start != t_span[1]:
+            t_eval_interval = None if t_eval is None else t_eval[t_eval >= t_start]
+            sol = solve_ivp(
+                _ode_rhs,
+                (t_start, t_span[1]),
+                initial_nuclei_layer,
+                t_eval=t_eval_interval,
+                args=(
+                    trans_rates_new,
+                    branching_fracs_new[layer],
+                    xfer_coeffs_new[layer],
+                    layer,
+                    nuclei_funcs,
+                ),
+            )
+
+            # store soln to t_span[1]
+            # already have the initial conditions
+            print(sol_t_layer)
+            print(sol.t)
+            exit(1)
+            assert sol_t_layer[-1] == sol.t[0]
+            assert np.array_equal(sol_y_layer[:, -1], sol.y[:, 0])
+            sol_t_layer = np.append(sol_t_layer, sol.t[1:])
+            sol_y_layer = np.append(sol_y_layer, sol.y[:, 1:], axis=1)
+
+        t_layers.append(sol_t_layer)
+        nuclei_layers.append(sol_y_layer)
+        nuclei_funcs.append([interp1d(sol_t_layer, n) for n in sol_y_layer])
 
     return t_layers, nuclei_layers
 
