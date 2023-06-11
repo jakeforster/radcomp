@@ -42,7 +42,7 @@ y(0) = 1e10
 """
 
 t_span = (0, 3)
-t_eval = np.linspace(0, 3, 11)  # try None too
+t_eval = np.linspace(0, 3, 10)  # try None too
 initial_nuclei = np.array([[1.08e12, 0], [0.0, 1e10]])
 trans_rates = np.array([0.1, 0])
 branching_fracs = np.array([[0, 0], [0.3, 0]])

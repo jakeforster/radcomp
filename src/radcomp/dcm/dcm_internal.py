@@ -7,7 +7,7 @@ from typing import Optional
 
 from radcomp.common.utils import nuclei_to_activity
 from radcomp.common.prelayer import Prelayer
-from radcomp.common.voiding import Voiding, _ordered_voids_in_layer
+from radcomp.common.voiding import Voiding, _VoidLayer, _ordered_voids_in_layer
 
 
 def _prelayer_as_tuple(
@@ -131,6 +131,102 @@ def _valid_dcm_input(
         )
 
 
+def _solve_dcm_layer(
+    layer: int,
+    t_span: tuple[float, float] | list[float],
+    initial_nuclei_layer: np.ndarray,
+    trans_rates_new: np.ndarray,
+    branching_fracs_new: np.ndarray,
+    xfer_coeffs_new: np.ndarray,
+    nuclei_funcs: list[list[Callable[[float], float]]],
+    layer_voids: list[_VoidLayer],
+    t_eval: Optional[np.ndarray] = None,
+):
+    _, b, c = xfer_coeffs_new.shape
+    assert b == c
+    num_compartments = b
+
+    t_start = t_span[0]
+
+    sol_t_layer = np.empty(0)
+    sol_y_layer = np.empty((num_compartments, 0))
+    for void in layer_voids:
+        t_end = void.time
+        assert t_end <= t_span[1]
+
+        # slice t_eval
+        t_eval_interval = (
+            None
+            if t_eval is None
+            else np.append(t_eval[(t_eval >= t_start) & (t_eval < t_end)], [t_end])
+        )
+        # if None, t_span bounds are always included in the deduced t_eval... I think
+
+        # solve
+        sol = solve_ivp(
+            _ode_rhs,
+            (t_start, t_end),
+            initial_nuclei_layer,
+            t_eval=t_eval_interval,
+            args=(
+                trans_rates_new,
+                branching_fracs_new[layer],
+                xfer_coeffs_new[layer],
+                layer,
+                nuclei_funcs,
+            ),
+        )
+
+        # record voided nuclei at t_end
+        voided_nuclei = sol.y[:, -1] * void.fractions
+
+        # initial conditions for next interval
+        initial_nuclei_layer = sol.y[:, -1] - voided_nuclei
+
+        # store soln with modified end point
+        sol_t_layer = np.append(sol_t_layer, sol.t)
+        sol_y_layer = np.append(sol_y_layer, sol.y[:, :-1], axis=1)
+        sol_y_layer = np.concatenate(
+            (sol_y_layer, np.reshape(initial_nuclei_layer, (-1, 1))), axis=1
+        )
+
+        # get ready for next interval
+        t_start = t_end
+
+    # final interval
+    if t_start != t_span[1]:
+        t_eval_interval = None if t_eval is None else t_eval[t_eval >= t_start]
+        sol = solve_ivp(
+            _ode_rhs,
+            (t_start, t_span[1]),
+            initial_nuclei_layer,
+            t_eval=t_eval_interval,
+            args=(
+                trans_rates_new,
+                branching_fracs_new[layer],
+                xfer_coeffs_new[layer],
+                layer,
+                nuclei_funcs,
+            ),
+        )
+
+        # store soln to t_span[1]
+        sol_t_layer = np.append(sol_t_layer, sol.t)
+        sol_y_layer = np.append(sol_y_layer, sol.y, axis=1)
+
+    # drop duplicates at void times
+    sol_t_layer, indices = np.unique(sol_t_layer, return_index=True)
+    sol_y_layer = sol_y_layer[:, indices]
+
+    # drop time points at void times if not in t_eval
+    if t_eval is not None:
+        mask = np.isin(sol_t_layer, t_eval)
+        sol_t_layer = sol_t_layer[mask]
+        sol_y_layer = sol_y_layer[:, mask]
+
+    return sol_t_layer, sol_y_layer
+
+
 def _solve_dcm(
     t_span: tuple[float, float] | list[float],
     initial_nuclei: np.ndarray,
@@ -198,11 +294,15 @@ def _solve_dcm(
         ) = prelayer_as_tuple
     nuclei_funcs.append(nuclei_funcs_prelayer)
 
+    if voiding_list is None:
+        voiding_list = []
+
     (
         initial_nuclei_new,
         trans_rates_new,
         branching_fracs_new,
         xfer_coeffs_new,
+        voiding_list_new,
     ) = _include_prelayer(
         initial_nuclei,
         trans_rates,
@@ -210,95 +310,24 @@ def _solve_dcm(
         xfer_coeffs,
         trans_rate_prelayer,
         branching_frac_prelayer,
+        voiding_list,
     )
 
     num_layers_new = len(trans_rates_new)
 
-    if voiding_list is None:
-        voiding_list = []
-
     for layer in range(1, num_layers_new):
-
-        layer_voids = _ordered_voids_in_layer(voiding_list, layer - 1)  # prelayer
-
-        t_start = t_span[0]
-        initial_nuclei_layer = initial_nuclei_new[layer]
-
-        sol_t_layer = np.array([t_start])  # []
-        sol_y_layer = np.reshape(initial_nuclei_layer, (-1, 1))  # [[],[]]
-        for void in layer_voids:
-            t_end = void.time
-            assert t_end <= t_span[1]
-
-            # slice t_eval
-            t_eval_interval = (
-                None
-                if t_eval is None
-                else np.append(t_eval[(t_eval >= t_start) & (t_eval < t_end)], [t_end])
-            )
-            # if None, t_span bounds are always included in the deduced t_eval... I think
-
-            # solve
-            sol = solve_ivp(
-                _ode_rhs,
-                (t_start, t_end),
-                initial_nuclei_layer,
-                t_eval=t_eval_interval,
-                args=(
-                    trans_rates_new,
-                    branching_fracs_new[layer],
-                    xfer_coeffs_new[layer],
-                    layer,
-                    nuclei_funcs,
-                ),
-            )
-
-            # record voided nuclei at t_end
-            voided_nuclei = sol.y[:, -1] * void.fractions
-
-            # initial conditions for next interval
-            initial_nuclei_layer = sol.y[:, -1] - voided_nuclei
-
-            # store soln with modified t_end point
-            # already have the initial conditions
-            assert sol_t_layer[-1] == sol.t[0]
-            assert np.array_equal(sol_y_layer[:, -1], sol.y[:, 0])
-            sol_t_layer = np.append(sol_t_layer, sol.t[1:])
-            sol_y_layer = np.append(sol_y_layer, sol.y[:, 1:-1], axis=1)
-            # modified end point
-            sol_y_layer = np.concatenate(
-                (sol_y_layer, np.reshape(initial_nuclei_layer, (-1, 1))), axis=1
-            )
-
-            # get ready for next interval
-            t_start = t_end
-
-        # final interval
-        if t_start != t_span[1]:
-            t_eval_interval = None if t_eval is None else t_eval[t_eval >= t_start]
-            sol = solve_ivp(
-                _ode_rhs,
-                (t_start, t_span[1]),
-                initial_nuclei_layer,
-                t_eval=t_eval_interval,
-                args=(
-                    trans_rates_new,
-                    branching_fracs_new[layer],
-                    xfer_coeffs_new[layer],
-                    layer,
-                    nuclei_funcs,
-                ),
-            )
-
-            # store soln to t_span[1]
-            # already have the initial conditions
-            print(sol_t_layer)
-            print(sol.t)
-            exit(1)
-            assert sol_t_layer[-1] == sol.t[0]
-            assert np.array_equal(sol_y_layer[:, -1], sol.y[:, 0])
-            sol_t_layer = np.append(sol_t_layer, sol.t[1:])
-            sol_y_layer = np.append(sol_y_layer, sol.y[:, 1:], axis=1)
+        layer_voids = _ordered_voids_in_layer(voiding_list_new, layer)
+        sol_t_layer, sol_y_layer = _solve_dcm_layer(
+            layer,
+            t_span,
+            initial_nuclei_new[layer],
+            trans_rates_new,
+            branching_fracs_new,
+            xfer_coeffs_new,
+            nuclei_funcs,
+            layer_voids,
+            t_eval=t_eval,
+        )
 
         t_layers.append(sol_t_layer)
         nuclei_layers.append(sol_y_layer)
@@ -367,7 +396,8 @@ def _include_prelayer(
     xfer_coeffs: np.ndarray,
     trans_rate_prelayer: float,
     branching_fracs_prelayer: np.ndarray,
-) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+    voiding_list: list[Voiding],
+) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, list[Voiding]]:
     """Make parameters for deterministic compartment model
     include the prelayer.
 
@@ -404,7 +434,21 @@ def _include_prelayer(
     )
     initial_nuclei_new = np.insert(initial_nuclei, 0, 0, axis=0)
     xfer_coeffs_new = np.insert(xfer_coeffs, 0, 0, axis=0)
-    return initial_nuclei_new, trans_rates_new, branching_fracs_new, xfer_coeffs_new
+    voiding_list_new = _include_prelayer_in_voiding_list(voiding_list)
+    return (
+        initial_nuclei_new,
+        trans_rates_new,
+        branching_fracs_new,
+        xfer_coeffs_new,
+        voiding_list_new,
+    )
+
+
+def _include_prelayer_in_voiding_list(voiding_list: list[Voiding]) -> list[Voiding]:
+    return [
+        Voiding(voiding.times, np.insert(voiding.fractions, 0, 0, axis=0))
+        for voiding in voiding_list
+    ]
 
 
 def _include_prelayer_in_branching_frac(

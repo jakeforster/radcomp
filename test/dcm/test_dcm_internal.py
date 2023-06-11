@@ -11,6 +11,7 @@ from radcomp.dcm.dcm_internal import (
     _info_xfer,
     _info_growth,
 )
+from radcomp.common.voiding import Voiding
 
 
 def test_info_xfer():
@@ -73,11 +74,16 @@ def test_include_prelayer():
     xfer_coeffs = np.array([xfer_coeffs_l, xfer_coeffs_l * 3, xfer_coeffs_l * 2])
     trans_rate_prelayer = 4.1
     branching_fracs_prelayer = np.array([0.1, 0.2, 0.6])
+    voiding_list = [
+        Voiding([1, 2.1], np.array([[0, 0.2], [0, 0], [1, 0]])),
+        Voiding([3.3], np.array([[1, 0], [0, 0], [0, 0]])),
+    ]
     (
         initial_nuclei_new,
         trans_rates_new,
         branching_fracs_new,
         xfer_coeffs_new,
+        voiding_list_new,
     ) = _include_prelayer(
         initial_nuclei,
         trans_rates,
@@ -85,6 +91,7 @@ def test_include_prelayer():
         xfer_coeffs,
         trans_rate_prelayer,
         branching_fracs_prelayer,
+        voiding_list,
     )
     assert np.array_equal(
         initial_nuclei_new, np.array([[0, 0], [1, 0], [0, 3], [2, 1]])
@@ -99,6 +106,12 @@ def test_include_prelayer():
         np.array(
             [np.zeros((2, 2)), xfer_coeffs_l, xfer_coeffs_l * 3, xfer_coeffs_l * 2]
         ),
+    )
+    assert voiding_list_new[0] == Voiding(
+        [1, 2.1], np.array([[0, 0], [0, 0.2], [0, 0], [1, 0]])
+    )
+    assert voiding_list_new[1] == Voiding(
+        [3.3], np.array([[0, 0], [1, 0], [0, 0], [0, 0]])
     )
 
 
