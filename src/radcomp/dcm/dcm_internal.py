@@ -55,6 +55,7 @@ def _valid_dcm_input(
     prelayer: Optional[Prelayer] = None,
     layer_names: Optional[list[str]] = None,
     compartment_names: Optional[list[str]] = None,
+    voiding_list: Optional[list[Voiding]] = None,
 ) -> None:
     """Assert statements to check validity of input parameters
     for deterministic compartment model.
@@ -94,6 +95,11 @@ def _valid_dcm_input(
         assert len(layer_names) == num_layers
     if compartment_names is not None:
         assert len(compartment_names) == num_compartments
+    if voiding_list is not None:
+        assert all(
+            voiding.fractions.shape == (num_layers, num_compartments)
+            for voiding in voiding_list
+        )
 
     # some type checks
     if prelayer is not None:
@@ -128,6 +134,12 @@ def _valid_dcm_input(
                 >= 0
             )
             for act in prelayer.activity_funcs
+        )
+
+    if voiding_list is not None:
+        assert all(
+            all(t_span[0] <= time <= t_span[1] for time in voiding.times)
+            for voiding in voiding_list
         )
 
 

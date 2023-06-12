@@ -4,6 +4,7 @@ from typing import Optional
 
 from radcomp.common.utils import nuclei_to_activity, _save_arrays
 from radcomp.common.prelayer import Prelayer
+from radcomp.common.voiding import Voiding
 from radcomp.dcm.dcm_internal import (
     _include_prelayer_in_branching_frac,
     _solve_dcm,
@@ -213,6 +214,7 @@ def solve_dcm(
     prelayer: Optional[Prelayer] = None,
     layer_names: Optional[list[str]] = None,
     compartment_names: Optional[list[str]] = None,
+    voiding_list: Optional[list[Voiding]] = None,
 ) -> DetCompModelSol:
     """Solve a deterministic compartment model.
 
@@ -253,6 +255,7 @@ def solve_dcm(
         prelayer,
         layer_names,
         compartment_names,
+        voiding_list,
     )
     num_layers, num_compartments, _ = xfer_coeffs.shape
     t_span = (t_eval.min(), t_eval.max())
@@ -264,6 +267,7 @@ def solve_dcm(
         xfer_coeffs,
         t_eval=t_eval,
         prelayer_as_tuple=_prelayer_as_tuple(prelayer, num_layers, num_compartments),
+        voiding_list=voiding_list,
     )
     return DetCompModelSol(
         trans_rates,
@@ -283,6 +287,7 @@ def solve_dcm_from_toml(
     filepath: str,
     t_eval: np.ndarray,
     prelayer: Optional[Prelayer] = None,
+    voiding_list: Optional[list[Voiding]] = None,
 ) -> DetCompModelSol:
     """Solve a deterministic compartment model from a
     TOML configuration file (except for a possible prelayer).
@@ -321,4 +326,5 @@ def solve_dcm_from_toml(
         prelayer=prelayer,
         layer_names=layer_names,
         compartment_names=compartment_names,
+        voiding_list=voiding_list,
     )
