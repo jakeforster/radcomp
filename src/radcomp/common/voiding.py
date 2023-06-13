@@ -18,7 +18,6 @@ class Voiding:
     fractions: np.ndarray
 
     def __eq__(self, other):
-        """Override default equality comparison method."""
         if not isinstance(other, Voiding):
             return NotImplemented
         return np.array_equal(self.times, other.times) and np.array_equal(
@@ -42,7 +41,6 @@ class _VoidLayer:
     fractions: np.ndarray
 
     def __eq__(self, other):
-        """Override default equality comparison method."""
         if not isinstance(other, _VoidLayer):
             return NotImplemented
         return self.time == other.time and np.array_equal(

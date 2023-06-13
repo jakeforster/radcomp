@@ -1496,3 +1496,60 @@ def test_time_symmetry():
         model.activity()[0][0],
         model_shift.activity()[0][0],
     )
+
+
+def test_voiding_2l():
+    """99Mo to 99mTc generator.
+
+    + initially 10 GBq of 99Mo
+    + 99mTc is eluted at 0 h, 24 h, 48 h
+
+    99Mo to 99mTc branching fraction is 0.89
+
+    activity of 99mTc reaches its maximum value:
+    a = franching_frac * activity 99Mo
+    at this time after elution:
+    t = (trans rate 99Mo - trans rate 99mTc)^(-1)
+    * ln(trans rate 99Mo / trans rate 99mTc )
+    """
+    pass
+
+
+def test_voiding_2l2c():
+    """99Mo to 99mTc generator, but there is 1 compartment
+    representing the generator and another compartment
+    that is independent of the first.
+
+
+    + initially 10 GBq of 99Mo
+    + 99mTc is eluted at 0 h, 24 h, 48 h
+
+    99Mo to 99mTc branching fraction is 0.89
+
+    activity of 99mTc reaches its maximum value:
+    a = franching_frac * activity 99Mo
+    at this time after elution:
+    t = (trans rate 99Mo - trans rate 99mTc)^(-1)
+    * ln(trans rate 99Mo / trans rate 99mTc )
+    """
+    pass
+
+
+def test_voiding_1l2c():
+    """99Mo to 99mTc generator, but simulated as transfer
+    between compartments in a single layer instead of the
+    usual way (i.e. transfer between layers in a single
+    compartment).
+
+    + initially 10 GBq of 99Mo
+    + 99mTc is eluted at 0 h, 24 h, 48 h
+
+    99Mo to 99mTc branching fraction is 0.89
+
+    activity of 99mTc reaches its maximum value:
+    a = franching_frac * activity 99Mo
+    at this time after elution:
+    t = (trans rate 99Mo - trans rate 99mTc)^(-1)
+    * ln(trans rate 99Mo / trans rate 99mTc )
+    """
+    pass

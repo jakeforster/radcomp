@@ -10,8 +10,10 @@ from radcomp.dcm.dcm_internal import (
     _cumulated_activity,
     _info_xfer,
     _info_growth,
+    _valid_dcm_input,
 )
 from radcomp.common.voiding import Voiding
+import pytest
 
 
 def test_info_xfer():
@@ -113,6 +115,8 @@ def test_include_prelayer():
     assert voiding_list_new[1] == Voiding(
         [3.3], np.array([[0, 0], [1, 0], [0, 0], [0, 0]])
     )
+    assert voiding_list[0] == Voiding([1, 2.1], np.array([[0, 0.2], [0, 0], [1, 0]]))
+    assert voiding_list[1] == Voiding([3.3], np.array([[1, 0], [0, 0], [0, 0]]))
 
 
 def test_ode_rhs():
@@ -340,6 +344,45 @@ def test_solve_dcm_prelayer():
     assert np.all(rel_error22 < 0.12)
 
 
+def test_solve_dcm_voiding():
+    t_span = (0, 72)
+    trans_rates = np.array([np.log(2) / 66, np.log(2) / 6])
+    initial_nuclei = np.array([[1e4 / trans_rates[0]], [0]])
+    branching_fracs = np.array([[0, 0], [0.89, 0]])
+    xfer_coeffs = np.array([np.array([[0]]), np.array([[0]])])
+    voiding_list = [Voiding(np.array([24, 48]), np.array([[0], [1]]))]
+    t_max = (trans_rates[0] - trans_rates[1]) ** (-1) * np.log(
+        trans_rates[0] / trans_rates[1]
+    )
+    t_eval = np.sort(
+        np.append(
+            np.append(np.linspace(0, 72, 1000), voiding_list[0].times + t_max), t_max
+        )
+    )
+
+    t_layers, nuclei_layers = _solve_dcm(
+        t_span,
+        initial_nuclei,
+        trans_rates,
+        branching_fracs,
+        xfer_coeffs,
+        t_eval=t_eval,
+        voiding_list=voiding_list,
+    )
+
+    activity_99mtc = nuclei_layers[1][0] * trans_rates[1]
+    activity_99mo = nuclei_layers[0][0] * trans_rates[0]
+
+    mask = t_layers[1] == t_max
+    assert np.isclose(activity_99mtc[mask], activity_99mo[mask] * 0.89, rtol=0.00011)
+
+    mask = t_layers[1] == voiding_list[0].times[0] + t_max
+    assert np.isclose(activity_99mtc[mask], activity_99mo[mask] * 0.89, rtol=0.0001)
+
+    mask = t_layers[1] == voiding_list[0].times[1] + t_max
+    assert np.isclose(activity_99mtc[mask], activity_99mo[mask] * 0.89, rtol=0.00011)
+
+
 def test_cumulated_activity():
     N11 = lambda t: 3 * np.exp(-2 * t) + 2 * np.exp(-0.3 * t)
     N12 = lambda t: np.exp(-5 * t)
@@ -372,3 +415,35 @@ def test_cumulated_activity():
             ]
         ),
     )
+
+
+def test_valid_dcm_input():
+    pass
+    """Check some asserts fail when intended.
+
+    t_span = (0, 3)
+    t_eval = np.linspace(0, 3, 1000)
+    initial_nuclei = np.array([[1.08e12, 0], [0.0, 1e10]])
+    trans_rates = np.array([0.1, 0])
+    branching_fracs = np.array([[0, 0], [0.3, 0]])
+    xfer_coeffs = np.array([np.array([[0, 0], [0.5, 0]]), np.zeros((2, 2))])
+
+    prelayer
+    layer_names
+    compartment_names
+    voiding_list
+
+    with pytest.raises(AssertionError):
+        _valid_dcm_input(
+            trans_rates,
+            branching_fracs,
+            xfer_coeffs,
+            initial_nuclei,
+            t_eval,
+            prelayer,
+            layer_names,
+            compartment_names,
+            voiding_list,
+        )
+
+    """
