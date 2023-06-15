@@ -12,7 +12,7 @@ from radcomp.dcm.dcm_internal import (
     _info_growth,
     _valid_dcm_input,
 )
-from radcomp.common.voiding import Voiding
+from radcomp.common.voiding import FractionalVoiding
 import pytest
 
 
@@ -76,16 +76,16 @@ def test_include_prelayer():
     xfer_coeffs = np.array([xfer_coeffs_l, xfer_coeffs_l * 3, xfer_coeffs_l * 2])
     trans_rate_prelayer = 4.1
     branching_fracs_prelayer = np.array([0.1, 0.2, 0.6])
-    voiding_list = [
-        Voiding(np.array([1, 2.1]), np.array([[0, 0.2], [0, 0], [1, 0]])),
-        Voiding(np.array([3.3]), np.array([[1, 0], [0, 0], [0, 0]])),
+    voiding = [
+        FractionalVoiding(np.array([1, 2.1]), np.array([[0, 0.2], [0, 0], [1, 0]])),
+        FractionalVoiding(np.array([3.3]), np.array([[1, 0], [0, 0], [0, 0]])),
     ]
     (
         initial_nuclei_new,
         trans_rates_new,
         branching_fracs_new,
         xfer_coeffs_new,
-        voiding_list_new,
+        voiding_new,
     ) = _include_prelayer(
         initial_nuclei,
         trans_rates,
@@ -93,7 +93,7 @@ def test_include_prelayer():
         xfer_coeffs,
         trans_rate_prelayer,
         branching_fracs_prelayer,
-        voiding_list,
+        voiding,
     )
     assert np.array_equal(
         initial_nuclei_new, np.array([[0, 0], [1, 0], [0, 3], [2, 1]])
@@ -109,16 +109,16 @@ def test_include_prelayer():
             [np.zeros((2, 2)), xfer_coeffs_l, xfer_coeffs_l * 3, xfer_coeffs_l * 2]
         ),
     )
-    assert voiding_list_new[0] == Voiding(
+    assert voiding_new[0] == FractionalVoiding(
         np.array([1, 2.1]), np.array([[0, 0], [0, 0.2], [0, 0], [1, 0]])
     )
-    assert voiding_list_new[1] == Voiding(
+    assert voiding_new[1] == FractionalVoiding(
         np.array([3.3]), np.array([[0, 0], [1, 0], [0, 0], [0, 0]])
     )
-    assert voiding_list[0] == Voiding(
+    assert voiding[0] == FractionalVoiding(
         np.array([1, 2.1]), np.array([[0, 0.2], [0, 0], [1, 0]])
     )
-    assert voiding_list[1] == Voiding(
+    assert voiding[1] == FractionalVoiding(
         np.array([3.3]), np.array([[1, 0], [0, 0], [0, 0]])
     )
 
@@ -354,14 +354,12 @@ def test_solve_dcm_voiding():
     initial_nuclei = np.array([[1e4 / trans_rates[0]], [0]])
     branching_fracs = np.array([[0, 0], [0.89, 0]])
     xfer_coeffs = np.array([np.array([[0]]), np.array([[0]])])
-    voiding_list = [Voiding(np.array([24, 48]), np.array([[0], [1]]))]
+    voiding = [FractionalVoiding(np.array([24, 48]), np.array([[0], [1]]))]
     t_max = (trans_rates[0] - trans_rates[1]) ** (-1) * np.log(
         trans_rates[0] / trans_rates[1]
     )
     t_eval = np.sort(
-        np.append(
-            np.append(np.linspace(0, 72, 1000), voiding_list[0].times + t_max), t_max
-        )
+        np.append(np.append(np.linspace(0, 72, 1000), voiding[0].times + t_max), t_max)
     )
 
     t_layers, nuclei_layers = _solve_dcm(
@@ -371,7 +369,7 @@ def test_solve_dcm_voiding():
         branching_fracs,
         xfer_coeffs,
         t_eval=t_eval,
-        voiding_list=voiding_list,
+        voiding=voiding,
     )
 
     activity_99mtc = nuclei_layers[1][0] * trans_rates[1]
@@ -380,10 +378,10 @@ def test_solve_dcm_voiding():
     mask = t_layers[1] == t_max
     assert np.isclose(activity_99mtc[mask], activity_99mo[mask] * 0.89, rtol=0.00011)
 
-    mask = t_layers[1] == voiding_list[0].times[0] + t_max
+    mask = t_layers[1] == voiding[0].times[0] + t_max
     assert np.isclose(activity_99mtc[mask], activity_99mo[mask] * 0.89, rtol=0.0001)
 
-    mask = t_layers[1] == voiding_list[0].times[1] + t_max
+    mask = t_layers[1] == voiding[0].times[1] + t_max
     assert np.isclose(activity_99mtc[mask], activity_99mo[mask] * 0.89, rtol=0.00011)
 
 
@@ -435,7 +433,7 @@ def test_valid_dcm_input():
     prelayer
     layer_names
     compartment_names
-    voiding_list
+    voiding
 
     with pytest.raises(AssertionError):
         _valid_dcm_input(
@@ -447,7 +445,7 @@ def test_valid_dcm_input():
             prelayer,
             layer_names,
             compartment_names,
-            voiding_list,
+            voiding,
         )
 
     """

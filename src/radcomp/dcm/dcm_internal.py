@@ -7,7 +7,11 @@ from typing import Optional
 
 from radcomp.common.utils import nuclei_to_activity
 from radcomp.common.prelayer import Prelayer
-from radcomp.common.voiding import Voiding, _VoidLayer, _ordered_voids_in_layer
+from radcomp.common.voiding import (
+    FractionalVoiding,
+    _VoidLayer,
+    _ordered_voids_in_layer,
+)
 
 
 def _prelayer_as_tuple(
@@ -55,7 +59,7 @@ def _valid_dcm_input(
     prelayer: Optional[Prelayer] = None,
     layer_names: Optional[list[str]] = None,
     compartment_names: Optional[list[str]] = None,
-    voiding_list: Optional[list[Voiding]] = None,
+    voiding: Optional[list[FractionalVoiding]] = None,
 ) -> None:
     """Assert statements to check validity of input parameters
     for deterministic compartment model.
@@ -95,10 +99,9 @@ def _valid_dcm_input(
         assert len(layer_names) == num_layers
     if compartment_names is not None:
         assert len(compartment_names) == num_compartments
-    if voiding_list is not None:
+    if voiding is not None:
         assert all(
-            voiding.fractions.shape == (num_layers, num_compartments)
-            for voiding in voiding_list
+            fv.fractions.shape == (num_layers, num_compartments) for fv in voiding
         )
 
     # some type checks
@@ -136,10 +139,9 @@ def _valid_dcm_input(
             for act in prelayer.activity_funcs
         )
 
-    if voiding_list is not None:
+    if voiding is not None:
         assert all(
-            all(t_span[0] <= time <= t_span[1] for time in voiding.times)
-            for voiding in voiding_list
+            all(t_span[0] <= time <= t_span[1] for time in fv.times) for fv in voiding
         )
 
 
@@ -249,7 +251,7 @@ def _solve_dcm(
     prelayer_as_tuple: Optional[
         tuple[float, np.ndarray, list[Callable[[float], float]]]
     ] = None,
-    voiding_list: Optional[list[Voiding]] = None,
+    voiding: Optional[list[FractionalVoiding]] = None,
 ) -> tuple[list[np.ndarray], list[np.ndarray]]:
     """Solve the deterministic compartment model.
 
@@ -306,15 +308,15 @@ def _solve_dcm(
         ) = prelayer_as_tuple
     nuclei_funcs.append(nuclei_funcs_prelayer)
 
-    if voiding_list is None:
-        voiding_list = []
+    if voiding is None:
+        voiding = []
 
     (
         initial_nuclei_new,
         trans_rates_new,
         branching_fracs_new,
         xfer_coeffs_new,
-        voiding_list_new,
+        voiding_new,
     ) = _include_prelayer(
         initial_nuclei,
         trans_rates,
@@ -322,13 +324,13 @@ def _solve_dcm(
         xfer_coeffs,
         trans_rate_prelayer,
         branching_frac_prelayer,
-        voiding_list,
+        voiding,
     )
 
     num_layers_new = len(trans_rates_new)
 
     for layer in range(1, num_layers_new):
-        layer_voids = _ordered_voids_in_layer(voiding_list_new, layer)
+        layer_voids = _ordered_voids_in_layer(voiding_new, layer)
         sol_t_layer, sol_y_layer = _solve_dcm_layer(
             layer,
             t_span,
@@ -408,8 +410,8 @@ def _include_prelayer(
     xfer_coeffs: np.ndarray,
     trans_rate_prelayer: float,
     branching_fracs_prelayer: np.ndarray,
-    voiding_list: list[Voiding],
-) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, list[Voiding]]:
+    voiding: list[FractionalVoiding],
+) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, list[FractionalVoiding]]:
     """Make parameters for deterministic compartment model
     include the prelayer.
 
@@ -446,20 +448,22 @@ def _include_prelayer(
     )
     initial_nuclei_new = np.insert(initial_nuclei, 0, 0, axis=0)
     xfer_coeffs_new = np.insert(xfer_coeffs, 0, 0, axis=0)
-    voiding_list_new = _include_prelayer_in_voiding_list(voiding_list)
+    voiding_new = _include_prelayer_in_voiding(voiding)
     return (
         initial_nuclei_new,
         trans_rates_new,
         branching_fracs_new,
         xfer_coeffs_new,
-        voiding_list_new,
+        voiding_new,
     )
 
 
-def _include_prelayer_in_voiding_list(voiding_list: list[Voiding]) -> list[Voiding]:
+def _include_prelayer_in_voiding(
+    voiding: list[FractionalVoiding],
+) -> list[FractionalVoiding]:
     return [
-        Voiding(voiding.times, np.insert(voiding.fractions, 0, 0, axis=0))
-        for voiding in voiding_list
+        FractionalVoiding(fv.times, np.insert(fv.fractions, 0, 0, axis=0))
+        for fv in voiding
     ]
 
 

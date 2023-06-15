@@ -26,9 +26,7 @@ prelayer = radcomp.Prelayer(
 )
 
 t_eval = np.linspace(0, 24, 1000)  # h
-model = radcomp.solve_dcm_from_toml(
-    "example_with_prelayer.toml", t_eval, prelayer=prelayer
-)
+model = radcomp.solve_dcm_from_toml("example_prelayer.toml", t_eval, prelayer=prelayer)
 print(model.info_xfer())
 print(model.info_growth())
 model.plot()

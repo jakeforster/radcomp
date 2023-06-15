@@ -1,4 +1,8 @@
-from radcomp.common.voiding import Voiding, _VoidLayer, _ordered_voids_in_layer
+from radcomp.common.voiding import (
+    FractionalVoiding,
+    _VoidLayer,
+    _ordered_voids_in_layer,
+)
 from radcomp.dcm.dcm_internal import _solve_dcm
 import numpy as np
 
@@ -10,7 +14,9 @@ def test_ordered_voids_in_layer_novoiding():
 
 
 def test_ordered_voids_in_layer_1voiding():
-    voiding = Voiding(np.array([6, 3]), np.array([[0, 0, 1], [0.5, 0, 0], [0, 0, 0]]))
+    voiding = FractionalVoiding(
+        np.array([6, 3]), np.array([[0, 0, 1], [0.5, 0, 0], [0, 0, 0]])
+    )
 
     ans0 = _ordered_voids_in_layer([voiding], 0)
     assert len(ans0) == 2
@@ -27,8 +33,10 @@ def test_ordered_voids_in_layer_1voiding():
 
 
 def test_ordered_voids_in_layer_2voiding():
-    voiding1 = Voiding(np.array([3, 6]), np.array([[0, 0, 1], [0.5, 0, 0], [0, 0, 0]]))
-    voiding2 = Voiding(
+    voiding1 = FractionalVoiding(
+        np.array([3, 6]), np.array([[0, 0, 1], [0.5, 0, 0], [0, 0, 0]])
+    )
+    voiding2 = FractionalVoiding(
         np.array([1, 7, 8]), np.array([[0, 0, 0], [1, 0, 1], [0, 0.4, 0]])
     )
 

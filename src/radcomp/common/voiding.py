@@ -3,7 +3,7 @@ import numpy as np
 
 
 @dataclass
-class Voiding:
+class FractionalVoiding:
     """Voiding of compartments.
 
     Parameters
@@ -22,7 +22,7 @@ class Voiding:
         self.fractions = np.array(self.fractions)
 
     def __eq__(self, other):
-        if not isinstance(other, Voiding):
+        if not isinstance(other, FractionalVoiding):
             return NotImplemented
         return np.array_equal(self.times, other.times) and np.array_equal(
             self.fractions, other.fractions
@@ -53,13 +53,13 @@ class _VoidLayer:
 
 
 def _ordered_voids_in_layer(
-    voiding_list: list[Voiding], layer: int
+    voiding: list[FractionalVoiding], layer: int
 ) -> list[_VoidLayer]:
     """Voids in a layer ordered by occurence."""
     void_layer_list = [
-        _VoidLayer(time, voiding.fractions[layer])
-        for voiding in voiding_list
-        for time in voiding.times
-        if any(voiding.fractions[layer] != 0)
+        _VoidLayer(time, fv.fractions[layer])
+        for fv in voiding
+        for time in fv.times
+        if any(fv.fractions[layer] != 0)
     ]
     return sorted(void_layer_list, key=lambda x: x.time)
