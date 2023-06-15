@@ -77,8 +77,8 @@ def test_include_prelayer():
     trans_rate_prelayer = 4.1
     branching_fracs_prelayer = np.array([0.1, 0.2, 0.6])
     voiding_list = [
-        Voiding([1, 2.1], np.array([[0, 0.2], [0, 0], [1, 0]])),
-        Voiding([3.3], np.array([[1, 0], [0, 0], [0, 0]])),
+        Voiding(np.array([1, 2.1]), np.array([[0, 0.2], [0, 0], [1, 0]])),
+        Voiding(np.array([3.3]), np.array([[1, 0], [0, 0], [0, 0]])),
     ]
     (
         initial_nuclei_new,
@@ -110,13 +110,17 @@ def test_include_prelayer():
         ),
     )
     assert voiding_list_new[0] == Voiding(
-        [1, 2.1], np.array([[0, 0], [0, 0.2], [0, 0], [1, 0]])
+        np.array([1, 2.1]), np.array([[0, 0], [0, 0.2], [0, 0], [1, 0]])
     )
     assert voiding_list_new[1] == Voiding(
-        [3.3], np.array([[0, 0], [1, 0], [0, 0], [0, 0]])
+        np.array([3.3]), np.array([[0, 0], [1, 0], [0, 0], [0, 0]])
     )
-    assert voiding_list[0] == Voiding([1, 2.1], np.array([[0, 0.2], [0, 0], [1, 0]]))
-    assert voiding_list[1] == Voiding([3.3], np.array([[1, 0], [0, 0], [0, 0]]))
+    assert voiding_list[0] == Voiding(
+        np.array([1, 2.1]), np.array([[0, 0.2], [0, 0], [1, 0]])
+    )
+    assert voiding_list[1] == Voiding(
+        np.array([3.3]), np.array([[1, 0], [0, 0], [0, 0]])
+    )
 
 
 def test_ode_rhs():

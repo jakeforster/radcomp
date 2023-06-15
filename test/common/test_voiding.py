@@ -10,7 +10,7 @@ def test_ordered_voids_in_layer_novoiding():
 
 
 def test_ordered_voids_in_layer_1voiding():
-    voiding = Voiding([6, 3], np.array([[0, 0, 1], [0.5, 0, 0], [0, 0, 0]]))
+    voiding = Voiding(np.array([6, 3]), np.array([[0, 0, 1], [0.5, 0, 0], [0, 0, 0]]))
 
     ans0 = _ordered_voids_in_layer([voiding], 0)
     assert len(ans0) == 2
@@ -27,8 +27,10 @@ def test_ordered_voids_in_layer_1voiding():
 
 
 def test_ordered_voids_in_layer_2voiding():
-    voiding1 = Voiding([3, 6], np.array([[0, 0, 1], [0.5, 0, 0], [0, 0, 0]]))
-    voiding2 = Voiding([1, 7, 8], np.array([[0, 0, 0], [1, 0, 1], [0, 0.4, 0]]))
+    voiding1 = Voiding(np.array([3, 6]), np.array([[0, 0, 1], [0.5, 0, 0], [0, 0, 0]]))
+    voiding2 = Voiding(
+        np.array([1, 7, 8]), np.array([[0, 0, 0], [1, 0, 1], [0, 0.4, 0]])
+    )
 
     ans0 = _ordered_voids_in_layer([voiding1, voiding2], 0)
     assert len(ans0) == 2

@@ -8,14 +8,18 @@ class Voiding:
 
     Parameters
     ----------
-    times : list | numpy.ndarray
+    times : numpy.ndarray
         Void times (h).
     fractions : numpy.ndarray
         Fraction (0 to 1) in each layer-compartment voided at times in `times`. Shape (num_layers, num_compartments).
     """
 
-    times: list | np.ndarray
+    times: np.ndarray
     fractions: np.ndarray
+
+    def __post_init__(self):
+        self.times = np.array(self.times)
+        self.fractions = np.array(self.fractions)
 
     def __eq__(self, other):
         if not isinstance(other, Voiding):
