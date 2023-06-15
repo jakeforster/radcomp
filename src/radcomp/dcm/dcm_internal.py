@@ -9,8 +9,8 @@ from radcomp.common.utils import nuclei_to_activity
 from radcomp.common.prelayer import Prelayer
 from radcomp.common.voiding import (
     FractionalVoiding,
-    _VoidLayer,
-    _ordered_voids_in_layer,
+    _FractionalVoidLayer,
+    _create_time_ordered_fractional_voids_for_layer,
 )
 
 
@@ -153,7 +153,7 @@ def _solve_dcm_layer(
     branching_fracs_new: np.ndarray,
     xfer_coeffs_new: np.ndarray,
     nuclei_funcs: list[list[Callable[[float], float]]],
-    layer_voids: list[_VoidLayer],
+    time_ordered_fractional_voids_for_layer: list[_FractionalVoidLayer],
     t_eval: Optional[np.ndarray] = None,
 ):
     _, b, c = xfer_coeffs_new.shape
@@ -164,8 +164,8 @@ def _solve_dcm_layer(
 
     sol_t_layer = np.empty(0)
     sol_y_layer = np.empty((num_compartments, 0))
-    for void in layer_voids:
-        t_end = void.time
+    for fvl in time_ordered_fractional_voids_for_layer:
+        t_end = fvl.time
         assert t_end <= t_span[1]
 
         # slice t_eval
@@ -192,7 +192,7 @@ def _solve_dcm_layer(
         )
 
         # record voided nuclei at t_end
-        voided_nuclei = sol.y[:, -1] * void.fractions
+        voided_nuclei = sol.y[:, -1] * fvl.fractions
 
         # initial conditions for next interval
         initial_nuclei_layer = sol.y[:, -1] - voided_nuclei
@@ -330,7 +330,9 @@ def _solve_dcm(
     num_layers_new = len(trans_rates_new)
 
     for layer in range(1, num_layers_new):
-        layer_voids = _ordered_voids_in_layer(voiding_new, layer)
+        time_ordered_fractional_voids_for_layer = (
+            _create_time_ordered_fractional_voids_for_layer(voiding_new, layer)
+        )
         sol_t_layer, sol_y_layer = _solve_dcm_layer(
             layer,
             t_span,
@@ -339,7 +341,7 @@ def _solve_dcm(
             branching_fracs_new,
             xfer_coeffs_new,
             nuclei_funcs,
-            layer_voids,
+            time_ordered_fractional_voids_for_layer,
             t_eval=t_eval,
         )
 

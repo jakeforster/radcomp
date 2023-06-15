@@ -30,7 +30,7 @@ class FractionalVoiding:
 
 
 @dataclass
-class _VoidLayer:
+class _FractionalVoidLayer:
     """A voiding of compartments in a layer.
 
     Parameters
@@ -45,21 +45,21 @@ class _VoidLayer:
     fractions: np.ndarray
 
     def __eq__(self, other):
-        if not isinstance(other, _VoidLayer):
+        if not isinstance(other, _FractionalVoidLayer):
             return NotImplemented
         return self.time == other.time and np.array_equal(
             self.fractions, other.fractions
         )
 
 
-def _ordered_voids_in_layer(
+def _create_time_ordered_fractional_voids_for_layer(
     voiding: list[FractionalVoiding], layer: int
-) -> list[_VoidLayer]:
+) -> list[_FractionalVoidLayer]:
     """Voids in a layer ordered by occurence."""
-    void_layer_list = [
-        _VoidLayer(time, fv.fractions[layer])
+    fvl_list = [
+        _FractionalVoidLayer(time, fv.fractions[layer])
         for fv in voiding
         for time in fv.times
         if any(fv.fractions[layer] != 0)
     ]
-    return sorted(void_layer_list, key=lambda x: x.time)
+    return sorted(fvl_list, key=lambda fvl: fvl.time)
