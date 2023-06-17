@@ -8,9 +8,9 @@ from typing import Optional
 from radcomp.common.utils import nuclei_to_activity
 from radcomp.common.prelayer import Prelayer
 from radcomp.common.voiding import (
-    FractionalVoiding,
-    _FractionalVoidLayer,
-    _create_time_ordered_fractional_voids_for_layer,
+    VoidingRule,
+    _VoidingEvent,
+    _create_time_ordered_voids_for_layer,
 )
 
 
@@ -59,7 +59,7 @@ def _valid_dcm_input(
     prelayer: Optional[Prelayer] = None,
     layer_names: Optional[list[str]] = None,
     compartment_names: Optional[list[str]] = None,
-    voiding: Optional[list[FractionalVoiding]] = None,
+    voiding_rules: Optional[list[VoidingRule]] = None,
 ) -> None:
     """Assert statements to check validity of input parameters
     for deterministic compartment model.
@@ -99,9 +99,10 @@ def _valid_dcm_input(
         assert len(layer_names) == num_layers
     if compartment_names is not None:
         assert len(compartment_names) == num_compartments
-    if voiding is not None:
+    if voiding_rules is not None:
         assert all(
-            fv.fractions.shape == (num_layers, num_compartments) for fv in voiding
+            rule.fractions.shape == (num_layers, num_compartments)
+            for rule in voiding_rules
         )
 
     # some type checks
@@ -139,9 +140,10 @@ def _valid_dcm_input(
             for act in prelayer.activity_funcs
         )
 
-    if voiding is not None:
+    if voiding_rules is not None:
         assert all(
-            all(t_span[0] <= time <= t_span[1] for time in fv.times) for fv in voiding
+            all(t_span[0] <= time <= t_span[1] for time in rule.times)
+            for rule in voiding_rules
         )
 
 
@@ -153,7 +155,7 @@ def _solve_dcm_layer(
     branching_fracs_new: np.ndarray,
     xfer_coeffs_new: np.ndarray,
     nuclei_funcs: list[list[Callable[[float], float]]],
-    time_ordered_fractional_voids_for_layer: list[_FractionalVoidLayer],
+    time_ordered_voids_for_layer: list[_VoidingEvent],
     t_eval: Optional[np.ndarray] = None,
 ):
     _, b, c = xfer_coeffs_new.shape
@@ -164,8 +166,8 @@ def _solve_dcm_layer(
 
     sol_t_layer = np.empty(0)
     sol_y_layer = np.empty((num_compartments, 0))
-    for fvl in time_ordered_fractional_voids_for_layer:
-        t_end = fvl.time
+    for voiding_event in time_ordered_voids_for_layer:
+        t_end = voiding_event.time
         assert t_end <= t_span[1]
 
         # slice t_eval
@@ -192,7 +194,7 @@ def _solve_dcm_layer(
         )
 
         # record voided nuclei at t_end
-        voided_nuclei = sol.y[:, -1] * fvl.fractions
+        voided_nuclei = sol.y[:, -1] * voiding_event.fractions
 
         # initial conditions for next interval
         initial_nuclei_layer = sol.y[:, -1] - voided_nuclei
@@ -251,7 +253,7 @@ def _solve_dcm(
     prelayer_as_tuple: Optional[
         tuple[float, np.ndarray, list[Callable[[float], float]]]
     ] = None,
-    voiding: Optional[list[FractionalVoiding]] = None,
+    voiding_rules: Optional[list[VoidingRule]] = None,
 ) -> tuple[list[np.ndarray], list[np.ndarray]]:
     """Solve the deterministic compartment model.
 
@@ -308,15 +310,15 @@ def _solve_dcm(
         ) = prelayer_as_tuple
     nuclei_funcs.append(nuclei_funcs_prelayer)
 
-    if voiding is None:
-        voiding = []
+    if voiding_rules is None:
+        voiding_rules = []
 
     (
         initial_nuclei_new,
         trans_rates_new,
         branching_fracs_new,
         xfer_coeffs_new,
-        voiding_new,
+        voiding_rules_new,
     ) = _include_prelayer(
         initial_nuclei,
         trans_rates,
@@ -324,14 +326,14 @@ def _solve_dcm(
         xfer_coeffs,
         trans_rate_prelayer,
         branching_frac_prelayer,
-        voiding,
+        voiding_rules,
     )
 
     num_layers_new = len(trans_rates_new)
 
     for layer in range(1, num_layers_new):
-        time_ordered_fractional_voids_for_layer = (
-            _create_time_ordered_fractional_voids_for_layer(voiding_new, layer)
+        time_ordered_voids_for_layer = _create_time_ordered_voids_for_layer(
+            voiding_rules_new, layer
         )
         sol_t_layer, sol_y_layer = _solve_dcm_layer(
             layer,
@@ -341,7 +343,7 @@ def _solve_dcm(
             branching_fracs_new,
             xfer_coeffs_new,
             nuclei_funcs,
-            time_ordered_fractional_voids_for_layer,
+            time_ordered_voids_for_layer,
             t_eval=t_eval,
         )
 
@@ -412,8 +414,8 @@ def _include_prelayer(
     xfer_coeffs: np.ndarray,
     trans_rate_prelayer: float,
     branching_fracs_prelayer: np.ndarray,
-    voiding: list[FractionalVoiding],
-) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, list[FractionalVoiding]]:
+    voiding_rules: list[VoidingRule],
+) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, list[VoidingRule]]:
     """Make parameters for deterministic compartment model
     include the prelayer.
 
@@ -450,22 +452,22 @@ def _include_prelayer(
     )
     initial_nuclei_new = np.insert(initial_nuclei, 0, 0, axis=0)
     xfer_coeffs_new = np.insert(xfer_coeffs, 0, 0, axis=0)
-    voiding_new = _include_prelayer_in_voiding(voiding)
+    voiding_rules_new = _include_prelayer_in_voiding_rules(voiding_rules)
     return (
         initial_nuclei_new,
         trans_rates_new,
         branching_fracs_new,
         xfer_coeffs_new,
-        voiding_new,
+        voiding_rules_new,
     )
 
 
-def _include_prelayer_in_voiding(
-    voiding: list[FractionalVoiding],
-) -> list[FractionalVoiding]:
+def _include_prelayer_in_voiding_rules(
+    voiding_rules: list[VoidingRule],
+) -> list[VoidingRule]:
     return [
-        FractionalVoiding(fv.times, np.insert(fv.fractions, 0, 0, axis=0))
-        for fv in voiding
+        VoidingRule(rule.times, np.insert(rule.fractions, 0, 0, axis=0))
+        for rule in voiding_rules
     ]
 
 

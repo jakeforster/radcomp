@@ -3,7 +3,7 @@ import numpy as np
 
 
 @dataclass
-class FractionalVoiding:
+class VoidingRule:
     """Voiding of compartments.
 
     Parameters
@@ -22,7 +22,7 @@ class FractionalVoiding:
         self.fractions = np.array(self.fractions)
 
     def __eq__(self, other):
-        if not isinstance(other, FractionalVoiding):
+        if not isinstance(other, VoidingRule):
             return NotImplemented
         return np.array_equal(self.times, other.times) and np.array_equal(
             self.fractions, other.fractions
@@ -30,7 +30,7 @@ class FractionalVoiding:
 
 
 @dataclass
-class _FractionalVoidLayer:
+class _VoidingEvent:
     """A voiding of compartments in a layer.
 
     Parameters
@@ -45,21 +45,21 @@ class _FractionalVoidLayer:
     fractions: np.ndarray
 
     def __eq__(self, other):
-        if not isinstance(other, _FractionalVoidLayer):
+        if not isinstance(other, _VoidingEvent):
             return NotImplemented
         return self.time == other.time and np.array_equal(
             self.fractions, other.fractions
         )
 
 
-def _create_time_ordered_fractional_voids_for_layer(
-    voiding: list[FractionalVoiding], layer: int
-) -> list[_FractionalVoidLayer]:
+def _create_time_ordered_voids_for_layer(
+    voiding_rules: list[VoidingRule], layer: int
+) -> list[_VoidingEvent]:
     """Voids in a layer ordered by occurence."""
-    fvl_list = [
-        _FractionalVoidLayer(time, fv.fractions[layer])
-        for fv in voiding
-        for time in fv.times
-        if any(fv.fractions[layer] != 0)
+    voiding_events = [
+        _VoidingEvent(time, rule.fractions[layer])
+        for rule in voiding_rules
+        for time in rule.times
+        if any(rule.fractions[layer] != 0)
     ]
-    return sorted(fvl_list, key=lambda fvl: fvl.time)
+    return sorted(voiding_events, key=lambda event: event.time)
