@@ -5,6 +5,7 @@ from radcomp.common.utils import nuclei_to_activity
 from radcomp.common.prelayer import Prelayer
 from radcomp.dcm.dcm import solve_dcm, solve_dcm_from_toml
 from radcomp.dcm.dcm_read_toml import _dcm_read_toml
+from radcomp.common.voiding import VoidingRule
 
 toml_dir = os.path.join(os.path.dirname(__file__), "tomls-for-testing")
 
@@ -1498,7 +1499,7 @@ def test_time_symmetry():
     )
 
 
-def test_voiding_2l():
+def test_voiding_2l1c():
     """99Mo to 99mTc generator.
 
     + initially 10 GBq of 99Mo
@@ -1507,12 +1508,39 @@ def test_voiding_2l():
     99Mo to 99mTc branching fraction is 0.89
 
     activity of 99mTc reaches its maximum value:
-    a = franching_frac * activity 99Mo
+    a = branching_frac * activity 99Mo
     at this time after elution:
     t = (trans rate 99Mo - trans rate 99mTc)^(-1)
     * ln(trans rate 99Mo / trans rate 99mTc )
     """
-    pass
+    trans_rates = np.array([0.010502, 0.115525])
+    voiding_rule = VoidingRule(np.array([24, 48]), np.array([[0], [1]]))
+    voiding_rules = [voiding_rule]
+    t_max = (trans_rates[0] - trans_rates[1]) ** (-1) * np.log(
+        trans_rates[0] / trans_rates[1]
+    )
+    t_eval = np.sort(
+        np.append(
+            np.append(np.linspace(0, 72, 1000), voiding_rule.times + t_max), t_max
+        )
+    )
+    fp = os.path.join(toml_dir, "test-voiding-2l1c.toml")
+    model = solve_dcm_from_toml(fp, t_eval, voiding_rules=voiding_rules)
+
+    mask = t_eval == t_max
+    assert np.isclose(
+        model.activity()[1, 0, mask], model.activity()[0, 0, mask] * 0.89, rtol=0.00009
+    )
+
+    mask = t_eval == voiding_rules[0].times[0] + t_max
+    assert np.isclose(
+        model.activity()[1, 0, mask], model.activity()[0, 0, mask] * 0.89, rtol=0.00008
+    )
+
+    mask = t_eval == voiding_rules[0].times[1] + t_max
+    assert np.isclose(
+        model.activity()[1, 0, mask], model.activity()[0, 0, mask] * 0.89, rtol=0.00009
+    )
 
 
 def test_voiding_2l2c():
@@ -1520,36 +1548,60 @@ def test_voiding_2l2c():
     representing the generator and another compartment
     that is independent of the first.
 
-
+    compartment 1:
     + initially 10 GBq of 99Mo
     + 99mTc is eluted at 0 h, 24 h, 48 h
+
+    compartment 2:
+    + initially 10 GBq of 99Mo
+
+    No xfer between compartments in either layer
 
     99Mo to 99mTc branching fraction is 0.89
 
     activity of 99mTc reaches its maximum value:
-    a = franching_frac * activity 99Mo
+    a = branching_frac * activity 99Mo
     at this time after elution:
     t = (trans rate 99Mo - trans rate 99mTc)^(-1)
     * ln(trans rate 99Mo / trans rate 99mTc )
     """
-    pass
+    trans_rates = np.array([0.010502, 0.115525])
+    voiding_rule = VoidingRule(np.array([24, 48]), np.array([[0, 0], [1, 0]]))
+    voiding_rules = [voiding_rule]
+    t_max = (trans_rates[0] - trans_rates[1]) ** (-1) * np.log(
+        trans_rates[0] / trans_rates[1]
+    )
+    t_eval = np.sort(
+        np.append(
+            np.append(np.linspace(0, 72, 1000), voiding_rule.times + t_max), t_max
+        )
+    )
+    fp = os.path.join(toml_dir, "test-voiding-2l2c.toml")
+    model = solve_dcm_from_toml(fp, t_eval, voiding_rules=voiding_rules)
 
+    # compartment 1
+    mask = t_eval == t_max
+    assert np.isclose(
+        model.activity()[1, 0, mask], model.activity()[0, 0, mask] * 0.89, rtol=0.00009
+    )
 
-def test_voiding_1l2c():
-    """99Mo to 99mTc generator, but simulated as transfer
-    between compartments in a single layer instead of the
-    usual way (i.e. transfer between layers in a single
-    compartment).
+    mask = t_eval == voiding_rules[0].times[0] + t_max
+    assert np.isclose(
+        model.activity()[1, 0, mask], model.activity()[0, 0, mask] * 0.89, rtol=0.0001
+    )
 
-    + initially 10 GBq of 99Mo
-    + 99mTc is eluted at 0 h, 24 h, 48 h
+    mask = t_eval == voiding_rules[0].times[1] + t_max
+    assert np.isclose(
+        model.activity()[1, 0, mask], model.activity()[0, 0, mask] * 0.89, rtol=0.00017
+    )
 
-    99Mo to 99mTc branching fraction is 0.89
-
-    activity of 99mTc reaches its maximum value:
-    a = franching_frac * activity 99Mo
-    at this time after elution:
-    t = (trans rate 99Mo - trans rate 99mTc)^(-1)
-    * ln(trans rate 99Mo / trans rate 99mTc )
-    """
-    pass
+    # compartment 2
+    A1 = lambda t: 1e4 * np.exp(-trans_rates[0] * t)
+    A2 = (
+        lambda t: A1(t)
+        * 0.89
+        * (trans_rates[1] / (trans_rates[1] - trans_rates[0]))
+        * (1 - np.exp(-(trans_rates[1] - trans_rates[0]) * t))
+    )
+    assert np.allclose(model.activity()[0, 1], A1(t_eval), rtol=2e-5)
+    assert np.allclose(model.activity()[1, 1], A2(t_eval), rtol=2e-4)

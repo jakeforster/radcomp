@@ -12,6 +12,7 @@ from radcomp.dcm.dcm_internal import (
     _info_growth,
     _valid_dcm_input,
 )
+from radcomp.common.utils import activity_to_nuclei
 from radcomp.common.voiding import VoidingRule
 import pytest
 
@@ -351,16 +352,17 @@ def test_solve_dcm_prelayer():
 def test_solve_dcm_voiding_rules():
     t_span = (0, 72)
     trans_rates = np.array([np.log(2) / 66, np.log(2) / 6])
-    initial_nuclei = np.array([[1e4 / trans_rates[0]], [0]])
+    initial_nuclei = np.array([[activity_to_nuclei(1e4, trans_rates[0])], [0]])
     branching_fracs = np.array([[0, 0], [0.89, 0]])
-    xfer_coeffs = np.array([np.array([[0]]), np.array([[0]])])
-    voiding_rules = [VoidingRule(np.array([24, 48]), np.array([[0], [1]]))]
+    xfer_coeffs = np.array([[[0]], [[0]]])
+    voiding_rule = VoidingRule(np.array([24, 48]), np.array([[0], [1]]))
+    voiding_rules = [voiding_rule]
     t_max = (trans_rates[0] - trans_rates[1]) ** (-1) * np.log(
         trans_rates[0] / trans_rates[1]
     )
     t_eval = np.sort(
         np.append(
-            np.append(np.linspace(0, 72, 1000), voiding_rules[0].times + t_max), t_max
+            np.append(np.linspace(0, 72, 1000), voiding_rule.times + t_max), t_max
         )
     )
 

@@ -3,14 +3,28 @@ from radcomp.common.voiding import (
     _VoidingEvent,
     _create_time_ordered_voids_for_layer,
 )
-from radcomp.dcm.dcm_internal import _solve_dcm
 import numpy as np
+import pytest
 
 
 def test_create_time_ordered_voids_for_layer_novoiding():
-    assert _create_time_ordered_voids_for_layer([], 0) == []
-    assert _create_time_ordered_voids_for_layer([], 1) == []
-    assert _create_time_ordered_voids_for_layer([], 1203) == []
+    voiding_rules = []
+    assert _create_time_ordered_voids_for_layer(voiding_rules, 0) == []
+    assert _create_time_ordered_voids_for_layer(voiding_rules, 1) == []
+    assert _create_time_ordered_voids_for_layer(voiding_rules, 1203) == []
+
+    voiding_rule = VoidingRule(np.array([]), np.ones((2, 3)))
+    voiding_rules = [voiding_rule]
+    assert _create_time_ordered_voids_for_layer(voiding_rules, 0) == []
+    assert _create_time_ordered_voids_for_layer(voiding_rules, 1) == []
+    assert _create_time_ordered_voids_for_layer(voiding_rules, 1203) == []
+
+    voiding_rule = VoidingRule(np.array([1.3, 4]), np.zeros((2, 3)))
+    voiding_rules = [voiding_rule]
+    assert _create_time_ordered_voids_for_layer(voiding_rules, 0) == []
+    assert _create_time_ordered_voids_for_layer(voiding_rules, 1) == []
+    with pytest.raises(IndexError):
+        _create_time_ordered_voids_for_layer(voiding_rules, 1203)
 
 
 def test_create_time_ordered_voids_for_layer_1voiding():

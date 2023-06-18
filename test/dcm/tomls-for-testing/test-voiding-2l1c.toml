@@ -1,0 +1,10 @@
+# test-voiding-2l1c.toml
+
+[[layer]]
+trans_rate_h-1 = 0.010502
+branching_fracs = [0.89]
+initial_MBq = [1e4]
+
+[[layer]]
+trans_rate_h-1 = 0.115525
+initial_MBq = [0]
