@@ -166,8 +166,9 @@ def _solve_dcm_layer(
 
     sol_t_layer = np.empty(0)
     sol_y_layer = np.empty((num_compartments, 0))
-    voided_nuclei_layer = []
-    for voiding_event in time_ordered_voids_for_layer:
+    num_voids = len(time_ordered_voids_for_layer)
+    voided_nuclei_layer = np.zeros((num_voids, num_compartments))
+    for i, voiding_event in enumerate(time_ordered_voids_for_layer):
         t_end = voiding_event.time
         assert t_end <= t_span[1]
 
@@ -197,7 +198,7 @@ def _solve_dcm_layer(
         # record voided nuclei at t_end
         voided_nuclei = sol.y[:, -1] * voiding_event.fractions
 
-        voided_nuclei_layer.append(voided_nuclei)
+        voided_nuclei_layer[i] = voided_nuclei
 
         # initial conditions for next interval
         initial_nuclei_layer = sol.y[:, -1] - voided_nuclei
@@ -211,8 +212,6 @@ def _solve_dcm_layer(
 
         # get ready for next interval
         t_start = t_end
-
-    # get rid of extra layer from x
 
     # final interval
     if t_start != t_span[1]:

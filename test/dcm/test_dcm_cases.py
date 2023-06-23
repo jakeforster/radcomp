@@ -1519,6 +1519,8 @@ def test_voiding_2l1c():
     t_max = (trans_rates[0] - trans_rates[1]) ** (-1) * np.log(
         trans_rates[0] / trans_rates[1]
     )
+    assert t_max < voiding_rule.times[0]
+    assert t_max < voiding_rule.times[1] - voiding_rule.times[0]
     t_eval = np.sort(
         np.append(
             np.append(np.linspace(0, 72, 1000), voiding_rule.times + t_max), t_max
@@ -1532,14 +1534,144 @@ def test_voiding_2l1c():
         model.activity()[1, 0, mask], model.activity()[0, 0, mask] * 0.89, rtol=0.00009
     )
 
+    mask = t_eval == voiding_rules[0].times[0]
+    assert np.isclose(model.activity()[1, 0, mask], 0, rtol=0.0001)
+
     mask = t_eval == voiding_rules[0].times[0] + t_max
     assert np.isclose(
         model.activity()[1, 0, mask], model.activity()[0, 0, mask] * 0.89, rtol=0.00008
     )
 
+    mask = t_eval == voiding_rules[0].times[1]
+    assert np.isclose(model.activity()[1, 0, mask], 0, rtol=0.0001)
+
     mask = t_eval == voiding_rules[0].times[1] + t_max
     assert np.isclose(
         model.activity()[1, 0, mask], model.activity()[0, 0, mask] * 0.89, rtol=0.00009
+    )
+
+    # void at 24 h
+    activity_voided_24h = (
+        0.89
+        * trans_rates[1]
+        / (trans_rates[1] - trans_rates[0])
+        * model.activity()[0, 0, t_eval == voiding_rules[0].times[0]]
+        * (1 - np.exp(-(trans_rates[1] - trans_rates[0]) * voiding_rules[0].times[0]))
+    )[0]
+
+    # void at 48 h
+    activity_voided_48h = (
+        0.89
+        * trans_rates[1]
+        / (trans_rates[1] - trans_rates[0])
+        * model.activity()[0, 0, t_eval == voiding_rules[0].times[1]]
+        * (
+            1
+            - np.exp(
+                -(trans_rates[1] - trans_rates[0])
+                * (voiding_rules[0].times[1] - voiding_rules[0].times[0])
+            )
+        )
+    )[0]
+
+    voided_activity = model.voided_activity()
+    assert len(voided_activity) == 1
+    assert voided_activity[0].shape == (2, 2, 1)
+    assert np.allclose(
+        voided_activity[0],
+        np.array([[[0], [activity_voided_24h]], [[0], [activity_voided_48h]]]),
+        rtol=8e-5,
+    )
+
+
+def test_voiding_2l1c_v2():
+    """99Mo to 99mTc generator.
+
+    + initially 10 GBq of 99Mo
+    + 99mTc is eluted at 0 h, 24 h, 48 h
+
+    99Mo to 99mTc branching fraction is 0.89
+
+    activity of 99mTc reaches its maximum value:
+    a = branching_frac * activity 99Mo
+    at this time after elution:
+    t = (trans rate 99Mo - trans rate 99mTc)^(-1)
+    * ln(trans rate 99Mo / trans rate 99mTc )
+    """
+    trans_rates = np.array([0.010502, 0.115525])
+    voiding_rules = [
+        VoidingRule(np.array([48]), np.array([[0], [1]])),
+        VoidingRule(np.array([24]), np.array([[0], [1]])),
+    ]
+    t_max = (trans_rates[0] - trans_rates[1]) ** (-1) * np.log(
+        trans_rates[0] / trans_rates[1]
+    )
+    assert t_max < voiding_rules[1].times[0]
+    assert t_max < voiding_rules[0].times[0] - voiding_rules[1].times[0]
+    t_eval = np.sort(
+        np.append(
+            np.append(np.linspace(0, 72, 1000), np.array([24, 48]) + t_max), t_max
+        )
+    )
+    fp = os.path.join(toml_dir, "test-voiding-2l1c.toml")
+    model = solve_dcm_from_toml(fp, t_eval, voiding_rules=voiding_rules)
+
+    mask = t_eval == t_max
+    assert np.isclose(
+        model.activity()[1, 0, mask], model.activity()[0, 0, mask] * 0.89, rtol=0.00009
+    )
+
+    mask = t_eval == 24
+    assert np.isclose(model.activity()[1, 0, mask], 0, rtol=0.0001)
+
+    mask = t_eval == 24 + t_max
+    assert np.isclose(
+        model.activity()[1, 0, mask], model.activity()[0, 0, mask] * 0.89, rtol=0.00008
+    )
+
+    mask = t_eval == 48
+    assert np.isclose(model.activity()[1, 0, mask], 0, rtol=0.0001)
+
+    mask = t_eval == 48 + t_max
+    assert np.isclose(
+        model.activity()[1, 0, mask], model.activity()[0, 0, mask] * 0.89, rtol=0.00009
+    )
+
+    # void at 24 h
+    activity_voided_24h = (
+        0.89
+        * trans_rates[1]
+        / (trans_rates[1] - trans_rates[0])
+        * model.activity()[0, 0, t_eval == 24]
+        * (1 - np.exp(-(trans_rates[1] - trans_rates[0]) * 24))
+    )[0]
+
+    # void at 48 h
+    activity_voided_48h = (
+        0.89
+        * trans_rates[1]
+        / (trans_rates[1] - trans_rates[0])
+        * model.activity()[0, 0, t_eval == 48]
+        * (1 - np.exp(-(trans_rates[1] - trans_rates[0]) * 24))
+    )[0]
+
+    voided_activity = model.voided_activity()
+    assert len(voided_activity) == 2
+    assert voided_activity[0].shape == (1, 2, 1)
+    assert np.allclose(
+        voided_activity[0],
+        np.array([[[0], [activity_voided_48h]]]),
+        rtol=7e-5,
+    )
+
+    # assert activity_voided_24h == 0  # 6996.974
+    # assert activity_voided_48h == 0  # 5438.02
+    voided_activity = model.voided_activity()
+    assert voided_activity[1].shape == (1, 2, 1)
+    assert np.allclose(
+        voided_activity[1],
+        np.array([[[0], [activity_voided_24h]]]),
+        rtol=8e-5,
     )
 
 
@@ -1605,3 +1737,34 @@ def test_voiding_2l2c():
     )
     assert np.allclose(model.activity()[0, 1], A1(t_eval), rtol=2e-5)
     assert np.allclose(model.activity()[1, 1], A2(t_eval), rtol=2e-4)
+
+    # void at 24 h
+    activity_voided_24h = (
+        0.89
+        * trans_rates[1]
+        / (trans_rates[1] - trans_rates[0])
+        * model.activity()[0, 0, t_eval == 24]
+        * (1 - np.exp(-(trans_rates[1] - trans_rates[0]) * 24))
+    )[0]
+
+    # void at 48 h
+    activity_voided_48h = (
+        0.89
+        * trans_rates[1]
+        / (trans_rates[1] - trans_rates[0])
+        * model.activity()[0, 0, t_eval == 48]
+        * (1 - np.exp(-(trans_rates[1] - trans_rates[0]) * 24))
+    )[0]
+
+    voided_activity = model.voided_activity()
+    # assert activity_voided_24h == 0  # 6996.974
+    # assert activity_voided_48h == 0  # 5438.02
+    assert len(voided_activity) == 1
+    assert voided_activity[0].shape == (2, 2, 2)
+    assert np.allclose(
+        voided_activity[0],
+        np.array(
+            [[[0, 0], [activity_voided_24h, 0]], [[0, 0], [activity_voided_48h, 0]]]
+        ),
+        rtol=9e-5,
+    )

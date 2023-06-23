@@ -12,7 +12,7 @@ from radcomp.dcm.dcm_internal import (
     _info_growth,
     _valid_dcm_input,
 )
-from radcomp.common.utils import activity_to_nuclei
+from radcomp.common.utils import activity_to_nuclei, nuclei_to_activity
 from radcomp.common.voiding import VoidingRule
 import pytest
 
@@ -225,7 +225,7 @@ def test_solve_dcm():
     branching_fracs = np.array([[0, 0], [0.3, 0]])
     xfer_coeffs = np.array([np.array([[0, 0], [0.5, 0]]), np.zeros((2, 2))])
 
-    t_layers, nuclei_layers = _solve_dcm(
+    t_layers, nuclei_layers, voided_nuclei = _solve_dcm(
         t_span,
         initial_nuclei,
         trans_rates,
@@ -257,6 +257,7 @@ def test_solve_dcm():
         100 * np.abs(nuclei_layers[1][1] - N22(t_layers[1])) / N22(t_layers[1])
     )
     assert np.all(rel_error22 < 0.1)
+    assert voided_nuclei == []
 
 
 def test_solve_dcm_prelayer():
@@ -328,7 +329,7 @@ def test_solve_dcm_prelayer():
         ]
     )
 
-    t_layers, nuclei_layers = _solve_dcm(
+    t_layers, nuclei_layers, voided_nuclei = _solve_dcm(
         t_span,
         initial_nuclei,
         trans_rates,
@@ -347,6 +348,7 @@ def test_solve_dcm_prelayer():
         100 * np.abs(nuclei_layers[0][1] - N22(t_layers[0])) / N22(t_layers[0])
     )
     assert np.all(rel_error22 < 0.12)
+    assert voided_nuclei == []
 
 
 def test_solve_dcm_voiding_rules():
@@ -360,13 +362,14 @@ def test_solve_dcm_voiding_rules():
     t_max = (trans_rates[0] - trans_rates[1]) ** (-1) * np.log(
         trans_rates[0] / trans_rates[1]
     )
+
     t_eval = np.sort(
         np.append(
             np.append(np.linspace(0, 72, 1000), voiding_rule.times + t_max), t_max
-        )
+        ),
     )
 
-    t_layers, nuclei_layers = _solve_dcm(
+    t_layers, nuclei_layers, voided_nuclei = _solve_dcm(
         t_span,
         initial_nuclei,
         trans_rates,
@@ -376,17 +379,140 @@ def test_solve_dcm_voiding_rules():
         voiding_rules=voiding_rules,
     )
 
-    activity_99mtc = nuclei_layers[1][0] * trans_rates[1]
-    activity_99mo = nuclei_layers[0][0] * trans_rates[0]
+    activity_99mtc = nuclei_to_activity(nuclei_layers[1][0], trans_rates[1])
+    activity_99mo = nuclei_to_activity(nuclei_layers[0][0], trans_rates[0])
 
     mask = t_layers[1] == t_max
     assert np.isclose(activity_99mtc[mask], activity_99mo[mask] * 0.89, rtol=0.00011)
 
+    mask = t_layers[1] == voiding_rules[0].times[0]
+    assert np.isclose(activity_99mtc[mask], 0, rtol=0.0001)
+
     mask = t_layers[1] == voiding_rules[0].times[0] + t_max
     assert np.isclose(activity_99mtc[mask], activity_99mo[mask] * 0.89, rtol=0.0001)
 
+    mask = t_layers[1] == voiding_rules[0].times[1]
+    assert np.isclose(activity_99mtc[mask], 0, rtol=0.0001)
+
     mask = t_layers[1] == voiding_rules[0].times[1] + t_max
     assert np.isclose(activity_99mtc[mask], activity_99mo[mask] * 0.89, rtol=0.00011)
+
+    # void at 24 h
+    activity_voided_24h = (
+        0.89
+        * trans_rates[1]
+        / (trans_rates[1] - trans_rates[0])
+        * activity_99mo[t_layers[0] == voiding_rules[0].times[0]]
+        * (1 - np.exp(-(trans_rates[1] - trans_rates[0]) * (voiding_rules[0].times[0])))
+    )[0]
+    nuclei_voided_24h = activity_to_nuclei(activity_voided_24h, trans_rates[1])
+
+    # void at 48 h
+    activity_voided_48h = (
+        0.89
+        * trans_rates[1]
+        / (trans_rates[1] - trans_rates[0])
+        * activity_99mo[t_layers[0] == voiding_rules[0].times[1]]
+        * (
+            1
+            - np.exp(
+                -(trans_rates[1] - trans_rates[0])
+                * (voiding_rules[0].times[1] - voiding_rules[0].times[0])
+            )
+        )
+    )[0]
+    nuclei_voided_48h = activity_to_nuclei(activity_voided_48h, trans_rates[1])
+
+    assert len(voided_nuclei) == 1
+    assert voided_nuclei[0].shape == (2, 2, 1)
+    assert np.allclose(
+        voided_nuclei[0],
+        np.array([[[0], [nuclei_voided_24h]], [[0], [nuclei_voided_48h]]]),
+        rtol=8e-5,
+    )
+
+
+def test_solve_dcm_voiding_rules_v2():
+    t_span = (0, 72)
+    trans_rates = np.array([np.log(2) / 66, np.log(2) / 6])
+    initial_nuclei = np.array([[activity_to_nuclei(1e4, trans_rates[0])], [0]])
+    branching_fracs = np.array([[0, 0], [0.89, 0]])
+    xfer_coeffs = np.array([[[0]], [[0]]])
+    voiding_rules = [
+        VoidingRule(np.array([48]), np.array([[0], [1]])),
+        VoidingRule(np.array([24]), np.array([[0], [1]])),
+    ]
+    t_max = (trans_rates[0] - trans_rates[1]) ** (-1) * np.log(
+        trans_rates[0] / trans_rates[1]
+    )
+
+    t_eval = np.sort(
+        np.append(
+            np.append(np.linspace(0, 72, 1000), np.array([24, 48]) + t_max), t_max
+        ),
+    )
+
+    t_layers, nuclei_layers, voided_nuclei = _solve_dcm(
+        t_span,
+        initial_nuclei,
+        trans_rates,
+        branching_fracs,
+        xfer_coeffs,
+        t_eval=t_eval,
+        voiding_rules=voiding_rules,
+    )
+
+    activity_99mtc = nuclei_to_activity(nuclei_layers[1][0], trans_rates[1])
+    activity_99mo = nuclei_to_activity(nuclei_layers[0][0], trans_rates[0])
+
+    mask = t_layers[1] == t_max
+    assert np.isclose(activity_99mtc[mask], activity_99mo[mask] * 0.89, rtol=0.00011)
+
+    mask = t_layers[1] == 24
+    assert np.isclose(activity_99mtc[mask], 0, rtol=0.0001)
+
+    mask = t_layers[1] == 24 + t_max
+    assert np.isclose(activity_99mtc[mask], activity_99mo[mask] * 0.89, rtol=0.0001)
+
+    mask = t_layers[1] == 48
+    assert np.isclose(activity_99mtc[mask], 0, rtol=0.0001)
+
+    mask = t_layers[1] == 48 + t_max
+    assert np.isclose(activity_99mtc[mask], activity_99mo[mask] * 0.89, rtol=0.00011)
+
+    # void at 24 h
+    activity_voided_24h = (
+        0.89
+        * trans_rates[1]
+        / (trans_rates[1] - trans_rates[0])
+        * activity_99mo[t_layers[0] == 24]
+        * (1 - np.exp(-(trans_rates[1] - trans_rates[0]) * 24))
+    )[0]
+    nuclei_voided_24h = activity_to_nuclei(activity_voided_24h, trans_rates[1])
+
+    # void at 48 h
+    activity_voided_48h = (
+        0.89
+        * trans_rates[1]
+        / (trans_rates[1] - trans_rates[0])
+        * activity_99mo[t_layers[0] == 48]
+        * (1 - np.exp(-(trans_rates[1] - trans_rates[0]) * 24))
+    )[0]
+    nuclei_voided_48h = activity_to_nuclei(activity_voided_48h, trans_rates[1])
+
+    assert len(voided_nuclei) == 2
+    assert voided_nuclei[0].shape == (1, 2, 1)
+    assert np.allclose(
+        voided_nuclei[0],
+        np.array([[[0], [nuclei_voided_48h]]]),
+        rtol=8e-5,
+    )
+    assert voided_nuclei[1].shape == (1, 2, 1)
+    assert np.allclose(
+        voided_nuclei[1],
+        np.array([[[0], [nuclei_voided_24h]]]),
+        rtol=8e-5,
+    )
 
 
 def test_cumulated_activity():

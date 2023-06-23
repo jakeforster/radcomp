@@ -49,8 +49,11 @@ class _VoidingEvent:
     def __eq__(self, other):
         if not isinstance(other, _VoidingEvent):
             return NotImplemented
-        return self.time == other.time and np.array_equal(
-            self.fractions, other.fractions
+        return (
+            self.time == other.time
+            and np.array_equal(self.fractions, other.fractions)
+            and self.voiding_rules_index == other.voiding_rules_index
+            and self.voiding_rule_times_index == other.voiding_rule_times_index
         )
 
 
@@ -58,9 +61,6 @@ def _create_time_ordered_voids_for_layer(
     voiding_rules: list[VoidingRule], layer: int
 ) -> list[_VoidingEvent]:
     """Voids in a layer ordered by occurence."""
-    # TODO add event number to remember order
-    # voiding_rule index
-    # time
     voiding_events = [
         _VoidingEvent(time, rule.fractions[layer], i, j)
         for i, rule in enumerate(voiding_rules)
@@ -68,18 +68,3 @@ def _create_time_ordered_voids_for_layer(
         if any(rule.fractions[layer] != 0)
     ]
     return sorted(voiding_events, key=lambda event: event.time)
-
-
-def _put_it_back_together():
-    # voided_nuclei has shape len(time_ordered_voids_for_layer), num_compartments
-    # TODO inverse of above, for scoring voided_nuclei and voided_activity()
-    # time_ordered_voids_for_layer
-    # voided_nuclei has length n_compartments
-    # x: list[np.ndarray],
-    # where x has length voiding_rules
-    # array has shape len(times) for voiding_rule, num_layers, num_compartments
-    # to initialise x requires voiding_rules
-    # x has to be initialised in _solve_dcm
-    # partially fill x in _solve_dcm_layer:
-    # when i get voided_nuclei it is x[voiding_event.voiding_rules_index][voiding_event.voiding_rule_times_index, layer, :]
-    pass

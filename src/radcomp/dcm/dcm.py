@@ -84,7 +84,18 @@ class DetCompModelSol:
         )
 
     def voided_activity(self):
-        pass
+        return [
+            np.transpose(
+                np.array(
+                    [
+                        nuclei_to_activity(x, tr)
+                        for x, tr in zip(np.transpose(vnr, (1, 0, 2)), self.trans_rates)
+                    ]
+                ),
+                (1, 0, 2),
+            )
+            for vnr in self.voided_nuclei
+        ]
 
     def cumulated_activity(
         self,
