@@ -82,8 +82,14 @@ class DetCompModelSol:
             ]
         )
 
-    def cumulated_activity(self) -> np.ndarray:
+    def cumulated_activity(
+        self,
+        t_start: Optional[float] = None,
+        t_end: Optional[float] = None,
+    ) -> np.ndarray:
         """Cumulated activity (MBq h) during ``t_eval``.
+
+        Note result is sensitive to ``t_eval``.
 
         Returns
         -------
@@ -92,7 +98,11 @@ class DetCompModelSol:
             cumulated activity (MBq h) in layer i, compartment j during ``t_eval``.
         """
         return _cumulated_activity(
-            [self.t_eval] * self.num_layers, self.nuclei, self.trans_rates
+            [self.t_eval] * self.num_layers,
+            self.nuclei,
+            self.trans_rates,
+            t_start=t_start,
+            t_end=t_end,
         )
 
     def halflife(self) -> np.ndarray:

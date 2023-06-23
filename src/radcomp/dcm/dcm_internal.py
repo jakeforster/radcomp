@@ -558,6 +558,8 @@ def _cumulated_activity(
     t_layers: list[np.ndarray],
     nuclei_layers: list[np.ndarray] | np.ndarray,
     trans_rates: np.ndarray,
+    t_start: Optional[float] = None,
+    t_end: Optional[float] = None,
 ) -> np.ndarray:
     """Cumulated activity (MBq h).
 
@@ -585,8 +587,25 @@ def _cumulated_activity(
     num_compartments = len(nuclei_layers[0])
     ans = np.zeros((num_layers, num_compartments))
     for layer, (tc, nl) in enumerate(zip(t_layers, nuclei_layers)):
+
+        if t_start is not None:
+            assert t_start >= tc[0]
+            t_start_l = t_start
+        else:
+            t_start_l = tc[0]
+
+        if t_end is not None:
+            assert t_end <= tc[-1]
+            t_end_l = t_end
+        else:
+            t_end_l = tc[-1]
+
+        mask = (tc >= t_start_l) & (tc <= t_end_l)
+
         for i, nc in enumerate(nl):
-            ans[layer, i] = np.trapz(nuclei_to_activity(nc, trans_rates[layer]), x=tc)
+            ans[layer, i] = np.trapz(
+                nuclei_to_activity(nc[mask], trans_rates[layer]), x=tc[mask]
+            )
     return ans
 
 
