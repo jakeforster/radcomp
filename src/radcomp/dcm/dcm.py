@@ -64,6 +64,7 @@ class DetCompModelSol:
     num_layers: int
     num_compartments: int
     nuclei: np.ndarray
+    voided_nuclei: list
 
     def activity(self) -> np.ndarray:
         """Activities (MBq) at times in ``t_eval``.
@@ -81,6 +82,9 @@ class DetCompModelSol:
                 for yl, tr in zip(self.nuclei, self.trans_rates)
             ]
         )
+
+    def voided_activity(self):
+        pass
 
     def cumulated_activity(
         self,
@@ -269,7 +273,7 @@ def solve_dcm(
     )
     num_layers, num_compartments, _ = xfer_coeffs.shape
     t_span = (t_eval.min(), t_eval.max())
-    _, nuclei = _solve_dcm(
+    _, nuclei, voided_nuclei = _solve_dcm(
         t_span,
         initial_nuclei,
         trans_rates,
@@ -290,6 +294,7 @@ def solve_dcm(
         num_layers,
         num_compartments,
         np.array(nuclei),
+        voided_nuclei,
     )
 
 

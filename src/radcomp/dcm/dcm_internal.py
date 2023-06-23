@@ -166,6 +166,7 @@ def _solve_dcm_layer(
 
     sol_t_layer = np.empty(0)
     sol_y_layer = np.empty((num_compartments, 0))
+    voided_nuclei_layer = []
     for voiding_event in time_ordered_voids_for_layer:
         t_end = voiding_event.time
         assert t_end <= t_span[1]
@@ -196,6 +197,8 @@ def _solve_dcm_layer(
         # record voided nuclei at t_end
         voided_nuclei = sol.y[:, -1] * voiding_event.fractions
 
+        voided_nuclei_layer.append(voided_nuclei)
+
         # initial conditions for next interval
         initial_nuclei_layer = sol.y[:, -1] - voided_nuclei
 
@@ -208,6 +211,8 @@ def _solve_dcm_layer(
 
         # get ready for next interval
         t_start = t_end
+
+    # get rid of extra layer from x
 
     # final interval
     if t_start != t_span[1]:
@@ -240,7 +245,7 @@ def _solve_dcm_layer(
         sol_t_layer = sol_t_layer[mask]
         sol_y_layer = sol_y_layer[:, mask]
 
-    return sol_t_layer, sol_y_layer
+    return sol_t_layer, sol_y_layer, voided_nuclei_layer
 
 
 def _solve_dcm(
@@ -331,11 +336,16 @@ def _solve_dcm(
 
     num_layers_new = len(trans_rates_new)
 
+    voided_nuclei_new = [
+        np.zeros((len(rule.times), num_layers_new, num_compartments))
+        for rule in voiding_rules_new
+    ]
+
     for layer in range(1, num_layers_new):
         time_ordered_voids_for_layer = _create_time_ordered_voids_for_layer(
             voiding_rules_new, layer
         )
-        sol_t_layer, sol_y_layer = _solve_dcm_layer(
+        sol_t_layer, sol_y_layer, voided_nuclei_layer = _solve_dcm_layer(
             layer,
             t_span,
             initial_nuclei_new[layer],
@@ -347,11 +357,19 @@ def _solve_dcm(
             t_eval=t_eval,
         )
 
+        for voiding_event, voided_nuclei_layer_event in zip(
+            time_ordered_voids_for_layer, voided_nuclei_layer
+        ):
+            voided_nuclei_new[voiding_event.voiding_rules_index][
+                voiding_event.voiding_rule_times_index, layer, :
+            ] = voided_nuclei_layer_event
+
         t_layers.append(sol_t_layer)
         nuclei_layers.append(sol_y_layer)
         nuclei_funcs.append([interp1d(sol_t_layer, n) for n in sol_y_layer])
 
-    return t_layers, nuclei_layers
+    voided_nuclei = [x[:, 1:, :] for x in voided_nuclei_new]
+    return t_layers, nuclei_layers, voided_nuclei
 
 
 def _ode_rhs(
