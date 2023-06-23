@@ -422,10 +422,12 @@ def test_cumulated_activity():
         ),
     )
 
+    # TODO test t_start +- t_end
+
 
 def test_valid_dcm_input():
     pass
-    """Check some asserts fail when intended.
+    """TODO Check some asserts fail when intended.
 
     t_span = (0, 3)
     t_eval = np.linspace(0, 3, 1000)

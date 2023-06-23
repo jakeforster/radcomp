@@ -56,6 +56,7 @@ def _create_time_ordered_voids_for_layer(
     voiding_rules: list[VoidingRule], layer: int
 ) -> list[_VoidingEvent]:
     """Voids in a layer ordered by occurence."""
+    # TODO add event number to remember order
     voiding_events = [
         _VoidingEvent(time, rule.fractions[layer])
         for rule in voiding_rules
@@ -63,3 +64,8 @@ def _create_time_ordered_voids_for_layer(
         if any(rule.fractions[layer] != 0)
     ]
     return sorted(voiding_events, key=lambda event: event.time)
+
+
+def _put_it_back_together():
+    # TODO inverse of above, for scoring voided_nuclei and voided_activity()
+    pass
