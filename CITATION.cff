@@ -12,8 +12,8 @@ doi: 10.5281/zenodo.7879164
 url: "https://github.com/jakeforster/radcomp"
 identifiers:
 - type: doi
+  value: 10.5281/zenodo.8077532
+  description: "Zenodo DOI for version 0.1.0"
+- type: doi
   value: 10.5281/zenodo.7879165
   description: "Zenodo DOI for version 0.0.1"
-- type: doi
-  value:
-  description: "Zenodo DOI for version 0.1.0"
