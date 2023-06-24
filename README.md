@@ -147,5 +147,7 @@ https://github.com/jakeforster/radcomp/tree/main/examples
 
 ## TODO
 
-Add stochastic models
+- Add support for forcing functions
+- Stochastic models 
+
 
