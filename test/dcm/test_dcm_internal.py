@@ -548,7 +548,19 @@ def test_cumulated_activity():
         ),
     )
 
-    # TODO test t_start +- t_end
+    ans_a = _cumulated_activity(
+        t_layers,
+        nuclei_layers,
+        trans_rates,
+        t_end=t_eval[200],
+    )
+    ans_b = _cumulated_activity(
+        t_layers,
+        nuclei_layers,
+        trans_rates,
+        t_start=t_eval[200],
+    )
+    assert np.allclose(ans_a + ans_b, ans)
 
 
 def test_valid_dcm_input():

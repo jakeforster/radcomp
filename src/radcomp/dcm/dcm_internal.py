@@ -157,7 +157,7 @@ def _solve_dcm_layer(
     nuclei_funcs: list[list[Callable[[float], float]]],
     time_ordered_voids_for_layer: list[_VoidingEvent],
     t_eval: Optional[np.ndarray] = None,
-):
+) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     _, b, c = xfer_coeffs_new.shape
     assert b == c
     num_compartments = b
@@ -178,7 +178,7 @@ def _solve_dcm_layer(
             if t_eval is None
             else np.append(t_eval[(t_eval >= t_start) & (t_eval < t_end)], [t_end])
         )
-        # if None, t_span bounds are always included in the deduced t_eval... I think
+        # if t_eval is None, t_span bounds are always included in the deduced t_eval in solve_ivp
 
         # solve
         sol = solve_ivp(
@@ -258,7 +258,7 @@ def _solve_dcm(
         tuple[float, np.ndarray, list[Callable[[float], float]]]
     ] = None,
     voiding_rules: Optional[list[VoidingRule]] = None,
-) -> tuple[list[np.ndarray], list[np.ndarray]]:
+) -> tuple[list[np.ndarray], list[np.ndarray], list[np.ndarray]]:
     """Solve the deterministic compartment model.
 
     Parameters
@@ -360,7 +360,8 @@ def _solve_dcm(
             time_ordered_voids_for_layer, voided_nuclei_layer
         ):
             voided_nuclei_new[voiding_event.voiding_rules_index][
-                voiding_event.voiding_rule_times_index, layer, :
+                voiding_event.voiding_rule_times_index,
+                layer,
             ] = voided_nuclei_layer_event
 
         t_layers.append(sol_t_layer)
