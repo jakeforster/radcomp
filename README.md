@@ -6,6 +6,8 @@ Radcomp is a Python package for modelling the movement of radioactive nuclei and
 
 Currently only deterministic compartment models are provided. 
 
+<!---TOC--->
+
 ## Requires
 
 Python >= 3.10, < 3.12
@@ -122,22 +124,25 @@ If a prelayer is provided, prelayer TACs must be provided for all compartments.
 
 Unlike the layers in the model, the prelayer is **not** specified in the input TOML file. 
 Instead, pass an instance of the `Prelayer` class to the instantiating model method (e.g. `solve_dcm_from_toml()`) using the optional keyword argument `prelayer`.
+See [examples](#examples) and [API reference](#api-reference).
 
 
 ## Voiding
 (New in Version 0.1.0)
 
-The user has the option to void nuclei from compartments at certain times.
-This is specified by creating voiding rules.
+The user has the option to void nuclei from compartments at times during the integration period.
+This is specified via voiding rules.
+
 Create one or more instances of the `VoidingRule` class and pass them to the instantiating model method (e.g. `solve_dcm_from_toml()`) using the optional keyword argument `voiding_rules`.
-See [examples](README.md#examples).
-The number of nuclei and activity voided is recorded in the `DetCompModelSol` instance.
+The number of nuclei and activity voided is also recorded in the `DetCompModelSol` instance.
+See [examples](#examples) and [API reference](#api-reference).
+
 
 ## API reference
 
 https://radcomp.readthedocs.io
 
-## Examples {#examples}
+## Examples
 
 https://github.com/jakeforster/radcomp/tree/main/examples
 

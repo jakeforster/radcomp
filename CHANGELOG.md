@@ -7,4 +7,4 @@ Initial release.
 
 ## [0.1.0] - 2023-XX-XX
 
-Added voiding of compartments.
+Added support for voiding compartments.
