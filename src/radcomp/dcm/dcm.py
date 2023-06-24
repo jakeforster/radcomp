@@ -55,7 +55,7 @@ class DetCompModelSol:
     voided_nuclei : list[numpy.ndarray]
         Element i is a 3D array containing the number of nuclei voided
         due to the ith voiding rule. This 3D array has shape
-        (number of times in ith voiding rule, ``num_layers``, ``num_compartments``).
+        (number of voiding times in ith voiding rule, ``num_layers``, ``num_compartments``).
         See also :func:`voided_activity`.
     """
 
@@ -98,7 +98,7 @@ class DetCompModelSol:
         list[numpy.ndarray]
             Element i is a 3D array containing the activity (MBq) voided
             due to the ith voiding rule. This 3D array has shape
-            (number of times in voiding rule i, ``num_layers``, ``num_compartments``).
+            (number of voiding times in voiding rule i, ``num_layers``, ``num_compartments``).
         """
         return [
             np.transpose(
