@@ -52,6 +52,10 @@ class DetCompModelSol:
         Shape (``num_layers``, ``num_compartments``, len(``t_eval``)). The solution.
         Element [i, j, k] is the number of nuclei in layer i, compartment j
         at element k of ``t_eval``.
+    voided_nuclei : list[numpy.ndarray]
+        Element i is a 3D array containing the number of nuclei voided
+        due to the ith voiding rule. This 3D array has shape
+        (number of times in voiding rule i, num_layers, num_compartments).
     """
 
     trans_rates: np.ndarray
@@ -64,7 +68,7 @@ class DetCompModelSol:
     num_layers: int
     num_compartments: int
     nuclei: np.ndarray
-    voided_nuclei: list
+    voided_nuclei: list[np.ndarray]
 
     def activity(self) -> np.ndarray:
         """Activities (MBq) at times in ``t_eval``.
@@ -84,6 +88,15 @@ class DetCompModelSol:
         )
 
     def voided_activity(self):
+        """Activities (MBq) voided due to voiding rules.
+
+        Returns
+        -------
+        list[numpy.ndarray]
+            Element i is a 3D array containing the activity (MBq) voided
+            due to the ith voiding rule. This 3D array has shape
+            (number of times in voiding rule i, ``num_layers``, ``num_compartments``).
+        """
         return [
             np.transpose(
                 np.array(
@@ -104,13 +117,20 @@ class DetCompModelSol:
     ) -> np.ndarray:
         """Cumulated activity (MBq h) during ``t_eval``.
 
-        Note result is sensitive to ``t_eval``.
+        Note result is sensitive to choice of ``t_eval``.
+
+        Parameters
+        ----------
+        t_start : Optional[float]
+            Start time (h) of integration. Default is start of ``t_eval``.
+        t_end : Optional[float]
+            End time (h) of integration. Default is end of ``t_eval``.
 
         Returns
         -------
         numpy.ndarray
             Shape (``num_layers``, ``num_compartments``). Element at index [i, j] is the
-            cumulated activity (MBq h) in layer i, compartment j during ``t_eval``.
+            cumulated activity (MBq h) in layer i, compartment j from ``t_start`` to ``t_end``.
         """
         return _cumulated_activity(
             [self.t_eval] * self.num_layers,
@@ -264,6 +284,7 @@ def solve_dcm(
         Names of layers in model.
     compartment_names : Optional[list[str]]
         Names of compartments in model.
+    voiding_rules : Optional[list[VoidingRule]]
 
     Returns
     -------
@@ -329,6 +350,7 @@ def solve_dcm_from_toml(
         Times (h) at which to solve the model. Must be sorted (ascending).
     prelayer : Optional[Prelayer]
         Input time-activity curves for a nuclide that is able to transition to one or more layers in the model.
+    voiding_rules : Optional[list[VoidingRule]]
 
     Returns
     -------

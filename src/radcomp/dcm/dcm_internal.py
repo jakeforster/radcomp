@@ -82,6 +82,7 @@ def _valid_dcm_input(
         Names of layers in model.
     compartment_names : Optional[list[str]]
         Names of compartments in model.
+    voiding_rules: Optiona[list[VoidingRule]]
     """
 
     # size checks
@@ -281,10 +282,11 @@ def _solve_dcm(
           `branching_fracs`[i] is for prelayer to layer i in model.
         + Number of prelayer nuclei as a function of time (h) for
           each compartment in the model. Length `num_compartments`.
+    voiding_rules : Optional[list[VoidingRule]]
 
     Returns
     -------
-    tuple[list[np.ndarray], list[np.ndarray]]
+    tuple[list[np.ndarray], list[np.ndarray], list[np.ndarray]]
         + Length num_layers. Element i is the 1D array of
           times (h) at which layer i is solved. If `t_eval`
           is not provided, this is [`t_eval`] * num_layers.
@@ -292,6 +294,10 @@ def _solve_dcm(
           the solution for layer i. This 2D array has
           shape (num_compartments, len(first_out[i])), where
           first_out is the first element of the return tuple.
+        + Length len(`voiding_rules`). Element i is a 3D array
+          containing the number of nuclei voided due to
+          ith element of `voiding_rules`. This 3D array has shape
+          (len(voiding_rules[i].times), num_layers, num_compartments).
     """
 
     t_layers = []
