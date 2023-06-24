@@ -5,6 +5,6 @@ All notable changes to this project will be documented in this file.
 
 Initial release.
 
-## [0.1.0] - 2023-XX-XX
+## [0.1.0] - 2023-06-24
 
 Added support for voiding compartments.
