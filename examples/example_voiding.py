@@ -12,6 +12,6 @@ model = radcomp.solve_dcm_from_toml(
 print(model.info_xfer())
 print(model.info_growth())
 
-print(model.voided_activity())
+print(f"Voided activty (MBq):\n{model.voided_activity()}")
 
 model.plot()

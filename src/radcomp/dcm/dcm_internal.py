@@ -236,15 +236,14 @@ def _solve_dcm_layer(
             ),
         )
 
-        # record voided nuclei at t_end
+        # record number of nuclei voided at t_end
         voided_nuclei = sol.y[:, -1] * voiding_event.fractions
-
         voided_nuclei_layer[i] = voided_nuclei
 
         # initial conditions for next interval
         initial_nuclei_layer = sol.y[:, -1] - voided_nuclei
 
-        # store soln with modified end point
+        # store soln with end point modified to account for void
         sol_t_layer = np.append(sol_t_layer, sol.t)
         sol_y_layer = np.append(sol_y_layer, sol.y[:, :-1], axis=1)
         sol_y_layer = np.concatenate(
@@ -271,7 +270,7 @@ def _solve_dcm_layer(
             ),
         )
 
-        # store soln to t_span[1]
+        # store soln extending to t_span[1]
         sol_t_layer = np.append(sol_t_layer, sol.t)
         sol_y_layer = np.append(sol_y_layer, sol.y, axis=1)
 
@@ -279,7 +278,7 @@ def _solve_dcm_layer(
     sol_t_layer, indices = np.unique(sol_t_layer, return_index=True)
     sol_y_layer = sol_y_layer[:, indices]
 
-    # drop time points at void times if not in t_eval
+    # drop time points at void times if they are not in t_eval
     if t_eval is not None:
         mask = np.isin(sol_t_layer, t_eval)
         sol_t_layer = sol_t_layer[mask]
