@@ -159,6 +159,46 @@ def _solve_dcm_layer(
     time_ordered_voids_for_layer: list[_VoidingEvent],
     t_eval: Optional[np.ndarray] = None,
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """Solve a layer of the deterministic compartment model.
+
+    Note the layers of the model may include a prelayer.
+    So num_layers may be 1 more than expected.
+
+    Parameters
+    ----------
+    layer : int
+        Layer of model being solved. Never the prelayer.
+    t_span : tuple[float, float] | list[float]
+        2-member sequence. Interval of integration (h).
+    initial_nuclei_layer : numpy.ndarray
+        Number of nuclei in each compartment of the layer at `t_eval[0]`. Shape (num_compartments,).
+    trans_rates_new : numpy.ndarray
+        Transition rates (h-1) of nuclides in layers. Shape (num_layers,).
+    branching_fracs_new : numpy.ndarray
+        Branching fractions (0 to 1). Shape (num_layers, num_layers). `branching_fracs_new`[i,j] is for layer j to layer i.
+    xfer_coeffs_new : numpy.ndarray
+        Transfer coefficients (h-1) between compartments. Shape (num_layers, num_compartments, num_compartments). `xfer_coeffs_new`[i,j,k] is for compartment k to compartment j in layer i.
+    nuclei_funcs : list[list[Callable[[float], float]]]
+        Length `layer`. `nuclei_funcs`[i] is the number of layer i nuclei
+        as a function of time (h) for each compartment in model;
+        length num_compartments; element at index j is the function for compartment j.
+    time_ordered_voids_for_layer : list[_VoidingEvent]
+    t_eval : Optional[numpy.ndarray]
+        Times (h) at which to solve the model. Must be sorted (ascending). Must be within `t_span`.
+
+    Returns
+    -------
+    tuple[list[np.ndarray], list[np.ndarray], list[np.ndarray]]
+        + 1D array of times (h) at which layer is solved.
+          If `t_eval` is provided, this is `t_eval`.
+        + 2D array containing the solution for layer.
+          This 2D array has shape (num_compartments, len(first_out[i])),
+          where first_out is the first element of the return tuple.
+        + Shape (len(`time_ordered_voids_for_layer`), num_compartments).
+          Element [i,j] is the number of nuclei voided in compartment j
+          in ith element of `time_ordered_voids_for_layer`.
+    """
+
     _, b, c = xfer_coeffs_new.shape
     assert b == c
     num_compartments = b
@@ -289,7 +329,7 @@ def _solve_dcm(
     tuple[list[np.ndarray], list[np.ndarray], list[np.ndarray]]
         + Length num_layers. Element i is the 1D array of
           times (h) at which layer i is solved. If `t_eval`
-          is not provided, this is [`t_eval`] * num_layers.
+          is provided, this is [`t_eval`] * num_layers.
         + Length num_layers. Element i is a 2D array containing
           the solution for layer i. This 2D array has
           shape (num_compartments, len(first_out[i])), where
@@ -529,7 +569,7 @@ def _plot_solved_tacs(
     trans_rates: np.ndarray,
     layer_names: Optional[list[str]] = None,
     compartment_names: Optional[list[str]] = None,
-):
+) -> None:
     """Produce plots of time-activity curves or time-nuclei curves.
 
     Parameters

@@ -4,14 +4,15 @@ import numpy as np
 
 @dataclass
 class VoidingRule:
-    """Voiding of compartments.
+    """A rule to specify how nuclei will be voided from compartments.
 
     Parameters
     ----------
     times : numpy.ndarray
         Void times (h).
     fractions : numpy.ndarray
-        Fraction (0 to 1) in each layer-compartment voided at times in `times`. Shape (num_layers, num_compartments).
+        The fractions (0 to 1) of nuclei in each compartment and layer
+        to be voided at times in ``times``. Shape (``num_layers``, ``num_compartments``).
     """
 
     times: np.ndarray
@@ -31,7 +32,7 @@ class VoidingRule:
 
 @dataclass
 class _VoidingEvent:
-    """A voiding of compartments in a layer.
+    """Instantaneous voiding of compartments in a layer.
 
     Parameters
     ----------
@@ -39,6 +40,10 @@ class _VoidingEvent:
         Void time (h).
     fractions : numpy.ndarray
         Fraction (0 to 1) in each compartment of layer voided at `time`. Shape (num_compartments,).
+    voiding_rules_index : int
+        Index of associated voiding rule in list of voiding rules.
+    voiding_rule_times_index : int
+        Index of associated time in list of times in voiding rule.
     """
 
     time: float
@@ -60,7 +65,17 @@ class _VoidingEvent:
 def _create_time_ordered_voids_for_layer(
     voiding_rules: list[VoidingRule], layer: int
 ) -> list[_VoidingEvent]:
-    """Voids in a layer ordered by occurence."""
+    """Create time-ordered voids for layer out of voiding rules.
+
+    Parameters
+    ----------
+    voiding_rules : list[VoidingRule]
+    layer : int
+
+    Returns
+    -------
+    list[_VoidingEvent]
+    """
     voiding_events = [
         _VoidingEvent(time, rule.fractions[layer], i, j)
         for i, rule in enumerate(voiding_rules)

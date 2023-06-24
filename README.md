@@ -123,11 +123,21 @@ If a prelayer is provided, prelayer TACs must be provided for all compartments.
 Unlike the layers in the model, the prelayer is **not** specified in the input TOML file. 
 Instead, pass an instance of the `Prelayer` class to the instantiating model method (e.g. `solve_dcm_from_toml()`) using the optional keyword argument `prelayer`.
 
+
+## Voiding
+(New in Version 0.1.0)
+
+The user has the option to void nuclei from compartments at certain times.
+This is specified by creating voiding rules.
+Create one or more instances of the `VoidingRule` class and pass them to the instantiating model method (e.g. `solve_dcm_from_toml()`) using the optional keyword argument `voiding_rules`.
+See [examples](README.md#examples).
+The number of nuclei and activity voided is recorded in the `DetCompModelSol` instance.
+
 ## API reference
 
 https://radcomp.readthedocs.io
 
-## Examples 
+## Examples {#examples}
 
 https://github.com/jakeforster/radcomp/tree/main/examples
 
