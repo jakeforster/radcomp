@@ -4,15 +4,15 @@ import numpy as np
 
 @dataclass
 class VoidingRule:
-    """A rule to specify how nuclei will be voided from compartments.
+    """A rule to specify voiding of nuclei from compartments.
 
     Parameters
     ----------
     times : numpy.ndarray
-        Void times (h).
+        Voiding times (h).
     fractions : numpy.ndarray
-        The fractions (0 to 1) of nuclei in each compartment and layer
-        to be voided at times in ``times``. Shape (``num_layers``, ``num_compartments``).
+        The fractions (0 to 1) of nuclei in each compartment of each layer
+        to be voided at the times in ``times``. Shape (``num_layers``, ``num_compartments``).
     """
 
     times: np.ndarray
@@ -32,7 +32,7 @@ class VoidingRule:
 
 @dataclass
 class _VoidingEvent:
-    """Instantaneous voiding of compartments in a layer.
+    """Instantaneous voiding of one or more compartments in a layer.
 
     Parameters
     ----------

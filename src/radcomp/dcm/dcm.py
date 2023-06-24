@@ -55,7 +55,8 @@ class DetCompModelSol:
     voided_nuclei : list[numpy.ndarray]
         Element i is a 3D array containing the number of nuclei voided
         due to the ith voiding rule. This 3D array has shape
-        (number of times in voiding rule i, num_layers, num_compartments).
+        (number of times in ith voiding rule, ``num_layers``, ``num_compartments``).
+        See also :func:`voided_activity`.
     """
 
     trans_rates: np.ndarray
@@ -89,6 +90,8 @@ class DetCompModelSol:
 
     def voided_activity(self):
         """Activities (MBq) voided due to voiding rules.
+
+        See also ``voided_nuclei``.
 
         Returns
         -------
@@ -278,6 +281,7 @@ def solve_dcm(
         Number of nuclei in each compartment in each layer at first element of ``t_eval``. Shape (``num_layers``, ``num_compartments``). Element [i, j] is for layer i, compartment j.
     t_eval : numpy.ndarray
         Times (h) at which to solve the model. Must be sorted (ascending).
+        Note the first element is the beginning of the integration period.
     prelayer : Optional[Prelayer]
         Input time-activity curves for a nuclide that is able to transition to one or more layers in the model.
     layer_names : Optional[list[str]]
@@ -285,6 +289,7 @@ def solve_dcm(
     compartment_names : Optional[list[str]]
         Names of compartments in model.
     voiding_rules : Optional[list[VoidingRule]]
+        Rules for voiding nuclei from compartments.
 
     Returns
     -------
@@ -348,9 +353,11 @@ def solve_dcm_from_toml(
         Filepath to TOML configuration file.
     t_eval : np.ndarray
         Times (h) at which to solve the model. Must be sorted (ascending).
+        Note the first element is the beginning of the integration period.
     prelayer : Optional[Prelayer]
         Input time-activity curves for a nuclide that is able to transition to one or more layers in the model.
     voiding_rules : Optional[list[VoidingRule]]
+        Rules for voiding nuclei from compartments.
 
     Returns
     -------
