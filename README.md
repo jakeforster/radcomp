@@ -127,7 +127,7 @@ Instead, pass an instance of the `Prelayer` class to the instantiating model met
 See [examples](https://github.com/jakeforster/radcomp/tree/main/examples) and refer to the [API reference](https://radcomp.readthedocs.io).
 
 ## Voiding
-(*New in Version 0.1.0*)
+*(New in Version 0.1.0)*
 
 The user has the option to void nuclei from compartments at times during the integration period.
 This is specified by "voiding rules".
