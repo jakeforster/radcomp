@@ -7,6 +7,11 @@ from typing import Optional
 
 from radcomp.common.utils import nuclei_to_activity
 from radcomp.common.prelayer import Prelayer
+from radcomp.common.voiding import (
+    VoidingRule,
+    _VoidingEvent,
+    _create_time_ordered_voids_for_layer,
+)
 
 
 def _prelayer_as_tuple(
@@ -54,6 +59,7 @@ def _valid_dcm_input(
     prelayer: Optional[Prelayer] = None,
     layer_names: Optional[list[str]] = None,
     compartment_names: Optional[list[str]] = None,
+    voiding_rules: Optional[list[VoidingRule]] = None,
 ) -> None:
     """Assert statements to check validity of input parameters
     for deterministic compartment model.
@@ -76,6 +82,7 @@ def _valid_dcm_input(
         Names of layers in model.
     compartment_names : Optional[list[str]]
         Names of compartments in model.
+    voiding_rules: Optiona[list[VoidingRule]]
     """
 
     # size checks
@@ -93,6 +100,11 @@ def _valid_dcm_input(
         assert len(layer_names) == num_layers
     if compartment_names is not None:
         assert len(compartment_names) == num_compartments
+    if voiding_rules is not None:
+        assert all(
+            rule.fractions.shape == (num_layers, num_compartments)
+            for rule in voiding_rules
+        )
 
     # some type checks
     if prelayer is not None:
@@ -129,6 +141,151 @@ def _valid_dcm_input(
             for act in prelayer.activity_funcs
         )
 
+    if voiding_rules is not None:
+        assert all(
+            all(t_span[0] <= time <= t_span[1] for time in rule.times)
+            for rule in voiding_rules
+        )
+
+
+def _solve_dcm_layer(
+    layer: int,
+    t_span: tuple[float, float] | list[float],
+    initial_nuclei_layer: np.ndarray,
+    trans_rates_new: np.ndarray,
+    branching_fracs_new: np.ndarray,
+    xfer_coeffs_new: np.ndarray,
+    nuclei_funcs: list[list[Callable[[float], float]]],
+    time_ordered_voids_for_layer: list[_VoidingEvent],
+    t_eval: Optional[np.ndarray] = None,
+) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """Solve a layer of the deterministic compartment model.
+
+    Note the layers of the model may include a prelayer.
+    So num_layers may be 1 more than expected.
+
+    Parameters
+    ----------
+    layer : int
+        Layer of model being solved. Never the prelayer.
+    t_span : tuple[float, float] | list[float]
+        2-member sequence. Interval of integration (h).
+    initial_nuclei_layer : numpy.ndarray
+        Number of nuclei in each compartment of the layer at `t_eval[0]`. Shape (num_compartments,).
+    trans_rates_new : numpy.ndarray
+        Transition rates (h-1) of nuclides in layers. Shape (num_layers,).
+    branching_fracs_new : numpy.ndarray
+        Branching fractions (0 to 1). Shape (num_layers, num_layers). `branching_fracs_new`[i,j] is for layer j to layer i.
+    xfer_coeffs_new : numpy.ndarray
+        Transfer coefficients (h-1) between compartments. Shape (num_layers, num_compartments, num_compartments). `xfer_coeffs_new`[i,j,k] is for compartment k to compartment j in layer i.
+    nuclei_funcs : list[list[Callable[[float], float]]]
+        Length `layer`. `nuclei_funcs`[i] is the number of layer i nuclei
+        as a function of time (h) for each compartment in model;
+        length num_compartments; element at index j is the function for compartment j.
+    time_ordered_voids_for_layer : list[_VoidingEvent]
+    t_eval : Optional[numpy.ndarray]
+        Times (h) at which to solve the model. Must be sorted (ascending). Must be within `t_span`.
+
+    Returns
+    -------
+    tuple[list[np.ndarray], list[np.ndarray], list[np.ndarray]]
+        + 1D array of times (h) at which layer is solved.
+          If `t_eval` is provided, this is `t_eval`.
+        + 2D array containing the solution for layer.
+          This 2D array has shape (num_compartments, len(first_out[i])),
+          where first_out is the first element of the return tuple.
+        + Shape (len(`time_ordered_voids_for_layer`), num_compartments).
+          Element [i,j] is the number of nuclei voided in compartment j
+          in ith element of `time_ordered_voids_for_layer`.
+    """
+
+    _, b, c = xfer_coeffs_new.shape
+    assert b == c
+    num_compartments = b
+
+    t_start = t_span[0]
+
+    sol_t_layer = np.empty(0)
+    sol_y_layer = np.empty((num_compartments, 0))
+    num_voids = len(time_ordered_voids_for_layer)
+    voided_nuclei_layer = np.zeros((num_voids, num_compartments))
+    for i, voiding_event in enumerate(time_ordered_voids_for_layer):
+        t_end = voiding_event.time
+        assert t_end <= t_span[1]
+
+        # slice t_eval
+        t_eval_interval = (
+            None
+            if t_eval is None
+            else np.append(t_eval[(t_eval >= t_start) & (t_eval < t_end)], [t_end])
+        )
+        # if t_eval is None, t_span bounds are always included in the deduced t_eval in solve_ivp
+
+        # solve
+        sol = solve_ivp(
+            _ode_rhs,
+            (t_start, t_end),
+            initial_nuclei_layer,
+            t_eval=t_eval_interval,
+            args=(
+                trans_rates_new,
+                branching_fracs_new[layer],
+                xfer_coeffs_new[layer],
+                layer,
+                nuclei_funcs,
+            ),
+        )
+
+        # record number of nuclei voided at t_end
+        voided_nuclei = sol.y[:, -1] * voiding_event.fractions
+        voided_nuclei_layer[i] = voided_nuclei
+
+        # initial conditions for next interval
+        initial_nuclei_layer = sol.y[:, -1] - voided_nuclei
+
+        # store soln with end point modified to account for void
+        sol_t_layer = np.append(sol_t_layer, sol.t)
+        sol_y_layer = np.append(sol_y_layer, sol.y[:, :-1], axis=1)
+        sol_y_layer = np.concatenate(
+            (sol_y_layer, np.reshape(initial_nuclei_layer, (-1, 1))), axis=1
+        )
+
+        # get ready for next interval
+        t_start = t_end
+
+    # final interval
+    if t_start != t_span[1]:
+        t_eval_interval = None if t_eval is None else t_eval[t_eval >= t_start]
+        sol = solve_ivp(
+            _ode_rhs,
+            (t_start, t_span[1]),
+            initial_nuclei_layer,
+            t_eval=t_eval_interval,
+            args=(
+                trans_rates_new,
+                branching_fracs_new[layer],
+                xfer_coeffs_new[layer],
+                layer,
+                nuclei_funcs,
+            ),
+        )
+
+        # store soln extending to t_span[1]
+        sol_t_layer = np.append(sol_t_layer, sol.t)
+        sol_y_layer = np.append(sol_y_layer, sol.y, axis=1)
+
+    # drop duplicates at void times
+    sol_t_layer, indices = np.unique(sol_t_layer, return_index=True)
+    sol_y_layer = sol_y_layer[:, indices]
+
+    # drop time points at void times if they are not in t_eval
+    if t_eval is not None:
+        mask = np.isin(sol_t_layer, t_eval)
+        sol_t_layer = sol_t_layer[mask]
+        sol_y_layer = sol_y_layer[:, mask]
+
+    return sol_t_layer, sol_y_layer, voided_nuclei_layer
+
 
 def _solve_dcm(
     t_span: tuple[float, float] | list[float],
@@ -140,7 +297,8 @@ def _solve_dcm(
     prelayer_as_tuple: Optional[
         tuple[float, np.ndarray, list[Callable[[float], float]]]
     ] = None,
-) -> tuple[list[np.ndarray], list[np.ndarray]]:
+    voiding_rules: Optional[list[VoidingRule]] = None,
+) -> tuple[list[np.ndarray], list[np.ndarray], list[np.ndarray]]:
     """Solve the deterministic compartment model.
 
     Parameters
@@ -163,17 +321,22 @@ def _solve_dcm(
           `branching_fracs`[i] is for prelayer to layer i in model.
         + Number of prelayer nuclei as a function of time (h) for
           each compartment in the model. Length `num_compartments`.
+    voiding_rules : Optional[list[VoidingRule]]
 
     Returns
     -------
-    tuple[list[np.ndarray], list[np.ndarray]]
+    tuple[list[np.ndarray], list[np.ndarray], list[np.ndarray]]
         + Length num_layers. Element i is the 1D array of
           times (h) at which layer i is solved. If `t_eval`
-          is not provided, this is [`t_eval`] * num_layers.
+          is provided, this is [`t_eval`] * num_layers.
         + Length num_layers. Element i is a 2D array containing
           the solution for layer i. This 2D array has
           shape (num_compartments, len(first_out[i])), where
           first_out is the first element of the return tuple.
+        + Length len(`voiding_rules`). Element i is a 3D array
+          containing the number of nuclei voided due to
+          ith element of `voiding_rules`. This 3D array has shape
+          (len(voiding_rules[i].times), num_layers, num_compartments).
     """
 
     t_layers = []
@@ -196,11 +359,15 @@ def _solve_dcm(
         ) = prelayer_as_tuple
     nuclei_funcs.append(nuclei_funcs_prelayer)
 
+    if voiding_rules is None:
+        voiding_rules = []
+
     (
         initial_nuclei_new,
         trans_rates_new,
         branching_fracs_new,
         xfer_coeffs_new,
+        voiding_rules_new,
     ) = _include_prelayer(
         initial_nuclei,
         trans_rates,
@@ -208,28 +375,46 @@ def _solve_dcm(
         xfer_coeffs,
         trans_rate_prelayer,
         branching_frac_prelayer,
+        voiding_rules,
     )
 
     num_layers_new = len(trans_rates_new)
+
+    voided_nuclei_new = [
+        np.zeros((len(rule.times), num_layers_new, num_compartments))
+        for rule in voiding_rules_new
+    ]
+
     for layer in range(1, num_layers_new):
-        sol = solve_ivp(
-            _ode_rhs,
+        time_ordered_voids_for_layer = _create_time_ordered_voids_for_layer(
+            voiding_rules_new, layer
+        )
+        sol_t_layer, sol_y_layer, voided_nuclei_layer = _solve_dcm_layer(
+            layer,
             t_span,
             initial_nuclei_new[layer],
+            trans_rates_new,
+            branching_fracs_new,
+            xfer_coeffs_new,
+            nuclei_funcs,
+            time_ordered_voids_for_layer,
             t_eval=t_eval,
-            args=(
-                trans_rates_new,
-                branching_fracs_new[layer],
-                xfer_coeffs_new[layer],
-                layer,
-                nuclei_funcs,
-            ),
         )
-        t_layers.append(sol.t)
-        nuclei_layers.append(sol.y)
-        nuclei_funcs.append([interp1d(sol.t, n) for n in sol.y])
 
-    return t_layers, nuclei_layers
+        for voiding_event, voided_nuclei_layer_event in zip(
+            time_ordered_voids_for_layer, voided_nuclei_layer
+        ):
+            voided_nuclei_new[voiding_event.voiding_rules_index][
+                voiding_event.voiding_rule_times_index,
+                layer,
+            ] = voided_nuclei_layer_event
+
+        t_layers.append(sol_t_layer)
+        nuclei_layers.append(sol_y_layer)
+        nuclei_funcs.append([interp1d(sol_t_layer, n) for n in sol_y_layer])
+
+    voided_nuclei = [x[:, 1:, :] for x in voided_nuclei_new]
+    return t_layers, nuclei_layers, voided_nuclei
 
 
 def _ode_rhs(
@@ -292,7 +477,8 @@ def _include_prelayer(
     xfer_coeffs: np.ndarray,
     trans_rate_prelayer: float,
     branching_fracs_prelayer: np.ndarray,
-) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+    voiding_rules: list[VoidingRule],
+) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, list[VoidingRule]]:
     """Make parameters for deterministic compartment model
     include the prelayer.
 
@@ -329,7 +515,23 @@ def _include_prelayer(
     )
     initial_nuclei_new = np.insert(initial_nuclei, 0, 0, axis=0)
     xfer_coeffs_new = np.insert(xfer_coeffs, 0, 0, axis=0)
-    return initial_nuclei_new, trans_rates_new, branching_fracs_new, xfer_coeffs_new
+    voiding_rules_new = _include_prelayer_in_voiding_rules(voiding_rules)
+    return (
+        initial_nuclei_new,
+        trans_rates_new,
+        branching_fracs_new,
+        xfer_coeffs_new,
+        voiding_rules_new,
+    )
+
+
+def _include_prelayer_in_voiding_rules(
+    voiding_rules: list[VoidingRule],
+) -> list[VoidingRule]:
+    return [
+        VoidingRule(rule.times, np.insert(rule.fractions, 0, 0, axis=0))
+        for rule in voiding_rules
+    ]
 
 
 def _include_prelayer_in_branching_frac(
@@ -366,7 +568,7 @@ def _plot_solved_tacs(
     trans_rates: np.ndarray,
     layer_names: Optional[list[str]] = None,
     compartment_names: Optional[list[str]] = None,
-):
+) -> None:
     """Produce plots of time-activity curves or time-nuclei curves.
 
     Parameters
@@ -419,6 +621,8 @@ def _cumulated_activity(
     t_layers: list[np.ndarray],
     nuclei_layers: list[np.ndarray] | np.ndarray,
     trans_rates: np.ndarray,
+    t_start: Optional[float] = None,
+    t_end: Optional[float] = None,
 ) -> np.ndarray:
     """Cumulated activity (MBq h).
 
@@ -446,8 +650,25 @@ def _cumulated_activity(
     num_compartments = len(nuclei_layers[0])
     ans = np.zeros((num_layers, num_compartments))
     for layer, (tc, nl) in enumerate(zip(t_layers, nuclei_layers)):
+
+        if t_start is not None:
+            assert t_start >= tc[0]
+            t_start_l = t_start
+        else:
+            t_start_l = tc[0]
+
+        if t_end is not None:
+            assert t_end <= tc[-1]
+            t_end_l = t_end
+        else:
+            t_end_l = tc[-1]
+
+        mask = (tc >= t_start_l) & (tc <= t_end_l)
+
         for i, nc in enumerate(nl):
-            ans[layer, i] = np.trapz(nuclei_to_activity(nc, trans_rates[layer]), x=tc)
+            ans[layer, i] = np.trapz(
+                nuclei_to_activity(nc[mask], trans_rates[layer]), x=tc[mask]
+            )
     return ans
 
 

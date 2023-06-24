@@ -7,5 +7,6 @@ API reference for Radcomp
    :maxdepth: 4
 
    radcomp.dcm.dcm
+   radcomp.common.voiding
    radcomp.common.prelayer
    radcomp.common.utils

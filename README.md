@@ -79,6 +79,8 @@ Table 1: Layer keys for a DCM. Here $a$ is the index of the layer (1-based index
 Note:
 + The values in `xfer_coeffs_h-1`, `initial_MBq`, and `initial_nuclei` are in order of compartments.
 + The first value in `branching_fracs` is for the transition to the layer immediately below. 
++ The initial values `initial_nuclei` and `initial_MBq` are the values at the start of the integration period.
+
 To check the input was as intended, call the `info_xfer()` and `info_growth()` methods of the `DetCompModelSol` instance.
 
 An example of a TOML file for a DCM is provided below. 
@@ -122,12 +124,23 @@ If a prelayer is provided, prelayer TACs must be provided for all compartments.
 
 Unlike the layers in the model, the prelayer is **not** specified in the input TOML file. 
 Instead, pass an instance of the `Prelayer` class to the instantiating model method (e.g. `solve_dcm_from_toml()`) using the optional keyword argument `prelayer`.
+See [examples](https://github.com/jakeforster/radcomp/tree/main/examples) and refer to the [API reference](https://radcomp.readthedocs.io).
+
+## Voiding
+*(New in Version 0.1.0)*
+
+The user has the option to void nuclei from compartments at times during the integration period.
+This is specified by "voiding rules".
+
+Create one or more instances of the `VoidingRule` class and pass them to the instantiating model method (e.g. `solve_dcm_from_toml()`) using the optional keyword argument `voiding_rules`.
+The number of nuclei and activity voided are also recorded in the `DetCompModelSol` instance.
+See [examples](https://github.com/jakeforster/radcomp/tree/main/examples) and refer to the [API reference](https://radcomp.readthedocs.io).
 
 ## API reference
 
 https://radcomp.readthedocs.io
 
-## Examples 
+## Examples
 
 https://github.com/jakeforster/radcomp/tree/main/examples
 
@@ -137,5 +150,6 @@ https://github.com/jakeforster/radcomp/tree/main/examples
 
 ## TODO
 
-Add stochastic models
+- Add support for forcing functions
+- Stochastic models 
 

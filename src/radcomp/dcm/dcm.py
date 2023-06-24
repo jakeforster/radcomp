@@ -4,6 +4,7 @@ from typing import Optional
 
 from radcomp.common.utils import nuclei_to_activity, _save_arrays
 from radcomp.common.prelayer import Prelayer
+from radcomp.common.voiding import VoidingRule
 from radcomp.dcm.dcm_internal import (
     _include_prelayer_in_branching_frac,
     _solve_dcm,
@@ -51,6 +52,11 @@ class DetCompModelSol:
         Shape (``num_layers``, ``num_compartments``, len(``t_eval``)). The solution.
         Element [i, j, k] is the number of nuclei in layer i, compartment j
         at element k of ``t_eval``.
+    voided_nuclei : list[numpy.ndarray]
+        Element i is a 3D array containing the number of nuclei voided
+        due to the ith voiding rule. This 3D array has shape
+        (number of voiding times in ith voiding rule, ``num_layers``, ``num_compartments``).
+        See also :func:`voided_activity`.
     """
 
     trans_rates: np.ndarray
@@ -63,6 +69,7 @@ class DetCompModelSol:
     num_layers: int
     num_compartments: int
     nuclei: np.ndarray
+    voided_nuclei: list[np.ndarray]
 
     def activity(self) -> np.ndarray:
         """Activities (MBq) at times in ``t_eval``.
@@ -81,17 +88,59 @@ class DetCompModelSol:
             ]
         )
 
-    def cumulated_activity(self) -> np.ndarray:
+    def voided_activity(self):
+        """Activities (MBq) voided due to voiding rules.
+
+        See also ``voided_nuclei``.
+
+        Returns
+        -------
+        list[numpy.ndarray]
+            Element i is a 3D array containing the activity (MBq) voided
+            due to the ith voiding rule. This 3D array has shape
+            (number of voiding times in voiding rule i, ``num_layers``, ``num_compartments``).
+        """
+        return [
+            np.transpose(
+                np.array(
+                    [
+                        nuclei_to_activity(x, tr)
+                        for x, tr in zip(np.transpose(vnr, (1, 0, 2)), self.trans_rates)
+                    ]
+                ),
+                (1, 0, 2),
+            )
+            for vnr in self.voided_nuclei
+        ]
+
+    def cumulated_activity(
+        self,
+        t_start: Optional[float] = None,
+        t_end: Optional[float] = None,
+    ) -> np.ndarray:
         """Cumulated activity (MBq h) during ``t_eval``.
+
+        Note result is sensitive to choice of ``t_eval``.
+
+        Parameters
+        ----------
+        t_start : Optional[float]
+            Start time (h) of integration. Default is start of ``t_eval``.
+        t_end : Optional[float]
+            End time (h) of integration. Default is end of ``t_eval``.
 
         Returns
         -------
         numpy.ndarray
             Shape (``num_layers``, ``num_compartments``). Element at index [i, j] is the
-            cumulated activity (MBq h) in layer i, compartment j during ``t_eval``.
+            cumulated activity (MBq h) in layer i, compartment j from ``t_start`` to ``t_end``.
         """
         return _cumulated_activity(
-            [self.t_eval] * self.num_layers, self.nuclei, self.trans_rates
+            [self.t_eval] * self.num_layers,
+            self.nuclei,
+            self.trans_rates,
+            t_start=t_start,
+            t_end=t_end,
         )
 
     def halflife(self) -> np.ndarray:
@@ -213,6 +262,7 @@ def solve_dcm(
     prelayer: Optional[Prelayer] = None,
     layer_names: Optional[list[str]] = None,
     compartment_names: Optional[list[str]] = None,
+    voiding_rules: Optional[list[VoidingRule]] = None,
 ) -> DetCompModelSol:
     """Solve a deterministic compartment model.
 
@@ -231,12 +281,15 @@ def solve_dcm(
         Number of nuclei in each compartment in each layer at first element of ``t_eval``. Shape (``num_layers``, ``num_compartments``). Element [i, j] is for layer i, compartment j.
     t_eval : numpy.ndarray
         Times (h) at which to solve the model. Must be sorted (ascending).
+        Note the first element is the beginning of the integration period.
     prelayer : Optional[Prelayer]
         Input time-activity curves for a nuclide that is able to transition to one or more layers in the model.
     layer_names : Optional[list[str]]
         Names of layers in model.
     compartment_names : Optional[list[str]]
         Names of compartments in model.
+    voiding_rules : Optional[list[VoidingRule]]
+        Rules for voiding nuclei from compartments.
 
     Returns
     -------
@@ -253,10 +306,11 @@ def solve_dcm(
         prelayer,
         layer_names,
         compartment_names,
+        voiding_rules,
     )
     num_layers, num_compartments, _ = xfer_coeffs.shape
     t_span = (t_eval.min(), t_eval.max())
-    _, nuclei = _solve_dcm(
+    _, nuclei, voided_nuclei = _solve_dcm(
         t_span,
         initial_nuclei,
         trans_rates,
@@ -264,6 +318,7 @@ def solve_dcm(
         xfer_coeffs,
         t_eval=t_eval,
         prelayer_as_tuple=_prelayer_as_tuple(prelayer, num_layers, num_compartments),
+        voiding_rules=voiding_rules,
     )
     return DetCompModelSol(
         trans_rates,
@@ -276,6 +331,7 @@ def solve_dcm(
         num_layers,
         num_compartments,
         np.array(nuclei),
+        voided_nuclei,
     )
 
 
@@ -283,6 +339,7 @@ def solve_dcm_from_toml(
     filepath: str,
     t_eval: np.ndarray,
     prelayer: Optional[Prelayer] = None,
+    voiding_rules: Optional[list[VoidingRule]] = None,
 ) -> DetCompModelSol:
     """Solve a deterministic compartment model from a
     TOML configuration file (except for a possible prelayer).
@@ -296,8 +353,11 @@ def solve_dcm_from_toml(
         Filepath to TOML configuration file.
     t_eval : np.ndarray
         Times (h) at which to solve the model. Must be sorted (ascending).
+        Note the first element is the beginning of the integration period.
     prelayer : Optional[Prelayer]
         Input time-activity curves for a nuclide that is able to transition to one or more layers in the model.
+    voiding_rules : Optional[list[VoidingRule]]
+        Rules for voiding nuclei from compartments.
 
     Returns
     -------
@@ -321,4 +381,5 @@ def solve_dcm_from_toml(
         prelayer=prelayer,
         layer_names=layer_names,
         compartment_names=compartment_names,
+        voiding_rules=voiding_rules,
     )

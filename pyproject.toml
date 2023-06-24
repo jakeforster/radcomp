@@ -1,6 +1,6 @@
 # LSP
 [tool.pyright]
-venv = "venv3.11.2"
+venv = "venv3.11"
 
 [build-system]
 requires = ["hatchling"]
@@ -8,7 +8,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "radcomp"
-version = "0.0.1"
+version = "0.1.0"
 authors = [{ name = "Jake Forster" },]
 description = "Model the movement of radioactive nuclei and their progeny through a system"
 readme = "README.md"
@@ -34,7 +34,7 @@ Changelog = "https://github.com/jakeforster/radcomp/CHANGELOG.md"
 
 [tool.poetry]
 name = "radcomp"
-version = "0.0.1"
+version = "0.1.0"
 description = "Model the movement of radioactive nuclei and their progeny through a system"
 authors = ["Jake Forster <jakecameron.forster@gmail.com>"]
 license = "MIT"
