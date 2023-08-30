@@ -2,13 +2,20 @@
 [tool.pyright]
 venv = "venv3.11"
 
+[tool.pytest.ini_options]
+minversion = "7.0"
+addopts = "-ra -q"
+testpaths = [
+"test",
+]
+
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project]
 name = "radcomp"
-version = "0.1.0"
+version = "0.2.0"
 authors = [{ name = "Jake Forster" },]
 description = "Model the movement of radioactive nuclei and their progeny through a system"
 readme = "README.md"
@@ -21,9 +28,9 @@ classifiers = [
     "Topic :: Scientific/Engineering :: Medical Science Apps.",
 ]
 dependencies = [
-    "numpy>=1.24.2, < 2",
+    "numpy>=1.23.2, < 2",
     "scipy>=1.10.1, < 2",
-    "matplotlib>=3.7.1, < 4",
+    "matplotlib>=3.5.2, < 4",
 ]
 
 [project.urls]
@@ -34,7 +41,7 @@ Changelog = "https://github.com/jakeforster/radcomp/CHANGELOG.md"
 
 [tool.poetry]
 name = "radcomp"
-version = "0.1.0"
+version = "0.2.0"
 description = "Model the movement of radioactive nuclei and their progeny through a system"
 authors = ["Jake Forster <jakecameron.forster@gmail.com>"]
 license = "MIT"
@@ -51,7 +58,9 @@ classifiers = [
 
 [tool.poetry.dependencies]
 python = ">=3.10,<3.12"
-numpy = "^1.24.2"
+numpy = "^1.23.2"  # "^1.24.2"
 scipy = "^1.10.1"
-matplotlib = "^3.7.1"
-pytest = "^7.2.2"
+matplotlib = "^3.5.2"  # "^3.7.1"
+pytest = "^7.0.0"  # "^7.2.2"
+
+
