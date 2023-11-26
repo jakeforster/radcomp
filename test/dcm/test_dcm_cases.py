@@ -828,7 +828,6 @@ def test_eg5():
     assert np.all(model.activity()[0][0] == 0)
     assert np.all(model.activity()[0][1] == 0)
     rel_error1 = 100 * np.abs(model.nuclei[0][0] - N1(t_eval)) / N1(t_eval)
-    print(rel_error1)
     assert np.all(rel_error1 < 1.1)
     rel_error2 = 100 * np.abs(model.nuclei[0][1][1:] - N2(t_eval)[1:]) / N2(t_eval)[1:]
     assert np.all(rel_error2 < 1.1)
@@ -1767,4 +1766,41 @@ def test_voiding_2l2c():
             [[[0, 0], [activity_voided_24h, 0]], [[0, 0], [activity_voided_48h, 0]]]
         ),
         rtol=9e-5,
+    )
+
+
+def test_eg12():
+    """
+    same as test_eg1() but with faster transition rate,
+    so that the Radau integration method is used.
+
+    2 unstable nuclides, first sometimes decays to second
+    1 compartment
+
+    Layer 1:
+    dN1/dt = - lambda1 * N1
+    A1(0) = 2 MBq
+    N1(0) = 2 * 1e6 * 60 * 60 / 20 = 3.6e8
+    lambda1 = 20 h-1
+
+    Layer 2:
+    dN2/dt = -lambda2 * N2 + branching_frac21 * lambda1 * N1
+    lambda2 = 2 h-1
+    A2(0) = 1 MBq
+    N2(0) = 1 * 1e6 * 60 * 60 / 2 = 1.8e9
+    branching_frac21 = 0.8
+    """
+    # analytical soln
+    N1 = lambda t: (3.6e8) * np.exp(-20 * t)
+    N2 = lambda t: (2.12e9 - (3.2e8) * np.exp(-18 * t)) * np.exp(-2 * t)
+
+    t_eval = np.linspace(0, 1, 1000)
+    fp = os.path.join(toml_dir, "test-eg12.toml")
+    model = solve_dcm_from_toml(fp, t_eval)
+
+    assert np.allclose(
+        model.activity()[0][0], nuclei_to_activity(N1(t_eval), 20), rtol=5e-3
+    )
+    assert np.allclose(
+        model.activity()[1][0], nuclei_to_activity(N2(t_eval), 2), rtol=5e-3
     )

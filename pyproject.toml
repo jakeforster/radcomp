@@ -15,11 +15,11 @@ build-backend = "hatchling.build"
 
 [project]
 name = "radcomp"
-version = "0.2.0"
+version = "0.3.0"
 authors = [{ name = "Jake Forster" },]
 description = "Model the movement of radioactive nuclei and their progeny through a system"
 readme = "README.md"
-requires-python = ">=3.10, <3.12"
+requires-python = ">=3.10"
 license = { text = "MIT" }
 classifiers = [
     "Programming Language :: Python :: 3",
@@ -41,7 +41,7 @@ Changelog = "https://github.com/jakeforster/radcomp/CHANGELOG.md"
 
 [tool.poetry]
 name = "radcomp"
-version = "0.2.0"
+version = "0.3.0"
 description = "Model the movement of radioactive nuclei and their progeny through a system"
 authors = ["Jake Forster <jakecameron.forster@gmail.com>"]
 license = "MIT"
@@ -57,7 +57,7 @@ classifiers = [
 ]
 
 [tool.poetry.dependencies]
-python = ">=3.10,<3.12"
+python = ">=3.10"
 numpy = "^1.23.2"  # "^1.24.2"
 scipy = "^1.10.1"
 matplotlib = "^3.5.2"  # "^3.7.1"

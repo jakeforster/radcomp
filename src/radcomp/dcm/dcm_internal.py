@@ -203,6 +203,19 @@ def _solve_dcm_layer(
     assert b == c
     num_compartments = b
 
+    # use integration method "Radau" if there is a
+    # large transition rate or
+    # or transfer coefficient in the ODE
+    # for the layer,
+    # else use the default "RK45"
+    threshold_rate_const = 10
+    method_integration = (
+        "Radau"
+        if np.any(xfer_coeffs_new[layer] > threshold_rate_const)
+        or np.any(trans_rates_new[: (layer + 1)] > threshold_rate_const)
+        else "RK45"
+    )
+
     t_start = t_span[0]
 
     sol_t_layer = np.empty(0)
@@ -226,6 +239,7 @@ def _solve_dcm_layer(
             _ode_rhs,
             (t_start, t_end),
             initial_nuclei_layer,
+            method=method_integration,
             t_eval=t_eval_interval,
             args=(
                 trans_rates_new,
@@ -260,6 +274,7 @@ def _solve_dcm_layer(
             _ode_rhs,
             (t_start, t_span[1]),
             initial_nuclei_layer,
+            method=method_integration,
             t_eval=t_eval_interval,
             args=(
                 trans_rates_new,

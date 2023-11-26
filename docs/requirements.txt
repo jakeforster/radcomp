@@ -2,4 +2,4 @@
 sphinx==6.2.1
 sphinx_rtd_theme==1.2.0
 readthedocs-sphinx-search==0.1.1
-radcomp==0.1.0
+radcomp==0.3.0
