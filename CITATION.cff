@@ -5,12 +5,15 @@ authors:
   given-names: "Jake Cameron"
   orcid: "https://orcid.org/0000-0002-0313-5897"
 title: "Radcomp"
-version: 0.2.0
-date-released: 2023-08-30
+version: 0.3.0
+date-released: 2023-11-26
 # Zenodo all versions
 doi: 10.5281/zenodo.7879164
 url: "https://github.com/jakeforster/radcomp"
 identifiers:
+- type: doi
+  value: 10.5281/zenodo.10207110
+  description: "Zenodo DOI for version 0.3.0"
 - type: doi
   value: 10.5281/zenodo.8301242
   description: "Zenodo DOI for version 0.2.0"
