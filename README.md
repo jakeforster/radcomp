@@ -8,7 +8,7 @@ Currently only deterministic compartment models are provided.
 
 ## Requires
 
-Python >= 3.10, < 3.12
+Python >= 3.10
 
 ## Installation
 
