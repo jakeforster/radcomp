@@ -767,3 +767,13 @@ def _info_growth(
             if bf != 0:
                 out += f"\N{BULLET} {parent_name} \N{RIGHTWARDS ARROW} {layer_name} with branching fraction {bf}\n"
     return out.removesuffix("\n")
+
+
+def daughter_pk_matrix():
+    """present daughter biokinetics in a matrix format
+    parent decay in organ i
+    daughter decay in organ j
+
+    but the results arent composable?
+    """
+    return
